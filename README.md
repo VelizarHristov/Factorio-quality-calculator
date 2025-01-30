@@ -1,8 +1,10 @@
-## sbt project compiled with Scala 3
+# Factorio quality calculator
 
-### Usage
+This is WIP with some features already working. This is my to-do list:
 
-This is a normal sbt project. You can compile code with `sbt compile`, run it with `sbt run`, and `sbt console` will start a Scala 3 REPL.
+- Calculate machine speeds and speed modules
+- Support "I want X quality or better" - for example someone might have unlocked legendary but wants rare or better, then display the number of inputs needed to make a single rare or better, and the ratios of rare:epic:legendary they'll be getting
+- Calculate multi-step processes (e.g. if there's the recipe chain A -> B -> C, and someone wanted to calculate the number of normal-quality As needed to make a legendary C)
+- Pull down all recipes in the game, let the user choose from them
 
-For more information on the sbt-dotty plugin, see the
-[scala3-example-project](https://github.com/scala/scala3-example-project/blob/main/README.md).
+If there's a feature that you wish to see, please open it as an Issue and I will consider adding it if it's in scope. The scope is anything that helps the user build production of quality items, which isn't already well covered by YAFC.

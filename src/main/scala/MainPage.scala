@@ -50,7 +50,8 @@ object MainPage {
         "It assumes that every product below the specified quality is recycled, and the resulting ingredients are fed back as inputs.", br(),
         "If the recipe has multiple different types of inputs then their required counts are always proportional with each other.", br(),
         "For example, an offshore pump requires 2 gears and 3 pipes. If you enter '2' for input count, then you will get the number of desired gears.", br(),
-        "If the calculator tells you that you need 200 gears, then it also means that you need 300 pipes of the same quality, as their ratio is always 2:3.", br()
+        "If the calculator tells you that you need 200 gears, then it also means that you need 300 pipes of the same quality, as their ratio is always 2:3.", br(),
+        "Version 0.1. ", a("Github repo", href("https://github.com/VelizarHristov/Factorio-quality-calculator")) 
       ),
       h2("Calculator"),
       p(
