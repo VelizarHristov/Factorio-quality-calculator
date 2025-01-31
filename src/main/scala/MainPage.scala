@@ -19,26 +19,38 @@ object MainPage {
   val productivityStrVar = Var(initial = "0.0")
   val recipeQualityStrVar = Var(initial = "10.0")
   val recyclerQualityStrVar = Var(initial = "10.0")
+  val recipeCraftingTimeSecStrVar = Var(initial = "1.0")
+  val machineSpeedStrVar = Var(initial = "1.25")
 
-  val outputStrSignal = Signal.combine(ingredientQualityVar.signal, unlockedQualityVar.signal, inputCountVar.signal, outputCountVar.signal, productivityStrVar.signal, recipeQualityStrVar.signal, recyclerQualityStrVar.signal
-  ).map { case (ingredientQuality, unlockedQuality, inputCount, outputCount, productivityStr, recipeQualityStr, recyclerQualityStr) => {
+  val outputStrSignal = Signal.combine(ingredientQualityVar.signal, unlockedQualityVar.signal, inputCountVar.signal, outputCountVar.signal,
+    productivityStrVar.signal, recipeQualityStrVar.signal, recyclerQualityStrVar.signal, recipeCraftingTimeSecStrVar.signal, machineSpeedStrVar.signal
+  ).map { case (ingredientQuality, unlockedQuality, inputCount, outputCount, productivityStr, recipeQualityStr, recyclerQualityStr, recipeCraftingTimeSecStr, machineSpeedStr) => {
     import Calculator._
     (for {
       prod <- productivityStr.toDoubleOption.map(_ / 100)
-      qual1 <- recipeQualityStr.toDoubleOption.map(_ / 100)
-      qual2 <- recyclerQualityStr.toDoubleOption.map(_ / 100)
-    } yield (prod, qual1, qual2)) match {
-      case Some((productivity, recipeQuality, recyclerQuality)) =>
+      recipeQual <- recipeQualityStr.toDoubleOption.map(_ / 100)
+      recyclerQual <- recyclerQualityStr.toDoubleOption.map(_ / 100)
+      craftingTime <- recipeCraftingTimeSecStr.toDoubleOption
+      spd <- machineSpeedStr.toDoubleOption
+    } yield (prod, recipeQual, recyclerQual, craftingTime, spd)) match {
+      case Some((productivity, recipeQuality, recyclerQuality, recipeCraftingTimeSec, machineSpeed)) =>
         val calc = Calculator(unlockedQuality)
         val recipe = Recipe("Tungsten Carbide", "Speed Module 3", inputCount, outputCount)
-        val res = calc.calcCostToLegendary(recipe, recipeQuality, recyclerQuality, productivity, ingredientQuality)
-        val resStr = if (res >= 1) {
-          f"$res%.2f"
+        val ProductionRes(ingredients, prodMachines, recMachines) = calc.calcSpeeds(recipe, recipeQuality, recyclerQuality, productivity, ingredientQuality, recipeCraftingTimeSec, machineSpeed)
+        val costStr = if (ingredients >= 1) {
+          f"$ingredients%.2f"
         } else {
-          f"$res%.8f"
+          f"$ingredients%.8f"
         }
-        s"$resStr ${qualityToStr(ingredientQuality)} inputs needed for 1 ${qualityToStr(unlockedQuality)} output"
-      case None => "Error parsing - productivity and quality must be decimalf numbers."
+        val costRes = s"$costStr ${qualityToStr(ingredientQuality)} inputs needed for 1 ${qualityToStr(unlockedQuality)} output"
+        val a = (1 to 5).filter(qual => prodMachines(qual) > 0.0)
+        val Seq(prodStr, recStr) = Seq(prodMachines, recMachines).map(machines => {
+          (1 to 5).toList.filter(qual => machines(qual) > 0.0).map(qual => {
+            f"${machines(qual) / 60}%.2f ${qualityToStr(qual)}"
+          }).mkString(" | ")
+        })
+        (costRes, "Machines: " + prodStr, "Recyclers: " + recStr)
+      case None => ("Error parsing - productivity, quality, and machine speed must be decimal numbers.", "", "")
     }
   }}
 
@@ -120,7 +132,30 @@ object MainPage {
           )
         )
       ),
-      p(text <-- outputStrSignal)
+      p(
+        label("Recipe crafting time (seconds): "),
+        input(
+          size(5),
+          controlled(
+            value <-- recipeCraftingTimeSecStrVar.signal.map(_.toString),
+            onInput.mapToValue --> recipeCraftingTimeSecStrVar
+          )
+        )
+      ),
+      p(
+        label("Machine speed: "),
+        input(
+          size(5),
+          controlled(
+            value <-- machineSpeedStrVar.signal.map(_.toString),
+            onInput.mapToValue --> machineSpeedStrVar
+          )
+        )
+      ),
+      p(text <-- outputStrSignal.map(_._1)),
+      h4("To produce 1 per minute"),
+      p(text <-- outputStrSignal.map(_._2)),
+      p(text <-- outputStrSignal.map(_._3))
     )
   }
 }

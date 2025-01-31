@@ -3,12 +3,33 @@ package calculator
 import collection.mutable
 
 object Calculator {
-  // quality is presented by numbers 1-5 for normal-legendary (in-game it's 0,1,2,3,5 instead)
+  // quality is represented by numbers 1-5 for normal-legendary (in-game it's 0,1,2,3,5 instead)
   case class Item(name: String, count: Double, quality: Int)
   case class Recipe(item1: String, item2: String, inputCount: Double, outputCount: Double)
+  case class ProductionRes(legResults: Double, prodMachine: Map[Int, Double], recMachine: Map[Int, Double]) {
+    def *(by: Double) = ProductionRes(
+      legResults * by,
+      prodMachine.view.mapValues(_ * by).toMap,
+      recMachine.view.mapValues(_ * by).toMap
+    )
+    def /(by: Double) = this * (1 / by)
+    def +(that: ProductionRes) = ProductionRes(
+      legResults + that.legResults,
+      (1 to 5).map(i => i -> (prodMachine(i) + that.prodMachine(i))).toMap,
+      (1 to 5).map(i => i -> (recMachine(i) + that.recMachine(i))).toMap
+    )
+    def addResults(results: Double) = copy(legResults = results + legResults)
+    def addProdUses(qual: Int, uses: Double) = copy(prodMachine = prodMachine.updatedWith(qual)(_.map(_ + uses)))
+    def addRecUses(qual: Int, uses: Double) = copy(recMachine = recMachine.updatedWith(qual)(_.map(_ + uses)))
+  }
+  def newProdRes(legResults: Double = 0.0,
+                 prodMachine: Map[Int, Double] = Map.empty,
+                 recMachine: Map[Int, Double] = Map.empty) = ProductionRes(legResults,
+    (1 to 5).map(i => i -> (prodMachine.getOrElse(i, 0.0))).toMap,
+    (1 to 5).map(i => i -> (recMachine.getOrElse(i, 0.0))).toMap)
 }
 
-class Calculator(lastUnlockedQuality: Int = 5) {
+class Calculator(lastUnlockedQual: Int = 5) {
   import Calculator._
   def doRecipe(recipe: Recipe,
               input: Item,
@@ -17,8 +38,8 @@ class Calculator(lastUnlockedQuality: Int = 5) {
     val Recipe(_, outputName, recipeInputCount, recipeOutputCount) = recipe
     val Item(inputName, inputCount, inputQuality) = input
     val totalOutput = (input.count / recipeInputCount) * recipeOutputCount * (1 + productivityInMachine)
-    if (inputQuality == lastUnlockedQuality) {
-      List(Item(outputName, totalOutput, lastUnlockedQuality))
+    if (inputQuality == lastUnlockedQual) {
+      List(Item(outputName, totalOutput, lastUnlockedQual))
     } else {
       Item(
         outputName, totalOutput * (1 - qualityInMachine), inputQuality
@@ -46,31 +67,49 @@ class Calculator(lastUnlockedQuality: Int = 5) {
    * With this information, we can similarly calculate for rare ingredients to legendary products:
    *   Any epic products or ingredients are converted to legendary using the already calculated ratio above.
    * Repeat for the lower qualities.
-   * 
-   * (The naming used in the code says "legendary" or "leg" instead of "last unlocked quality" to avoid verbosity)
     */
-  def calcCostToLegendary(recipe: Recipe,
-                          qualityInMachine: Double,
-                          qualityInRecycler: Double,
-                          productivityInMachine: Double,
-                          ingredientQuality: Int): Double = {
+  def calcSpeeds(recipe: Recipe,
+                 qualInMachine: Double,
+                 qualInRec: Double,
+                 prodInMachine: Double,
+                 ingredientQual: Int,
+                 recipeCraftingTimeSec: Double,
+                 machineSpeed: Double): ProductionRes = {
+    val craftingTimeSec = recipeCraftingTimeSec / machineSpeed
     val Recipe(item1, item2, inputCount, outputCount) = recipe
-    val productToProduct = mutable.Map(lastUnlockedQuality -> 1.0)
-    val ingredientToProduct = mutable.Map(lastUnlockedQuality -> (outputCount / inputCount) * (1 + productivityInMachine))
-    for (qual <- (lastUnlockedQuality - 1) to ingredientQuality by -1) {
-      val products = doRecipe(recipe, Item(item1, 1, qual), qualityInMachine, productivityInMachine)
-      val initialLegProducts = products.map(p => p.count * productToProduct.getOrElse(p.quality, 0.0)).sum
-      val sameQualityProducts = products.minBy(_.quality).count
+    val productToProduct = mutable.Map(lastUnlockedQual -> newProdRes(1.0))
+    val ingredientToProduct = mutable.Map(lastUnlockedQual -> newProdRes(
+        (outputCount / inputCount) * (1 + prodInMachine),
+        Map(lastUnlockedQual -> (outputCount / inputCount))
+    ))
+    for (qual <- (lastUnlockedQual - 1) to ingredientQual by -1) {
+      val products = doRecipe(recipe, Item(item1, 1, qual), qualInMachine, prodInMachine)
+      val sameQualProducts = products.minBy(_.quality).count
+      val sameQualProductRatio = sameQualProducts / products.map(_.count).sum
+      val higherQualRes = products.map(p =>
+        productToProduct.getOrElse(p.quality, (newProdRes())) * p.count
+      ).reduce(_ + _).addProdUses(qual, 1 - sameQualProductRatio)
 
-      val ingredients = doRecycle(recipe, Item(item2, 1, qual), qualityInRecycler)
-      val nextIngredients = ingredients.map(i => i.copy(count = i.count * sameQualityProducts))
-      val sameQualityIngredients = nextIngredients.minBy(_.quality).count
-      val legProductsFromIngredients = nextIngredients.map(p => p.count * ingredientToProduct.getOrElse(p.quality, 0.0)).sum
-      val legProducts = initialLegProducts + legProductsFromIngredients
-      val ingredientCost = 1 - sameQualityIngredients
-      ingredientToProduct(qual) = legProducts / ingredientCost
-      productToProduct(qual) = ingredients.map(p => p.count * ingredientToProduct(p.quality)).sum
+      val ingredients = doRecycle(recipe, Item(item2, 1, qual), qualInRec)
+      val nextIngredients = ingredients.map(i => i.copy(count = i.count * sameQualProducts))
+      val sameQualIngredients = nextIngredients.minBy(_.quality).count
+      val sameQualIngredientRatio = sameQualIngredients / nextIngredients.map(_.count).sum
+      val higherQualResFromIngredients = nextIngredients.map(
+        p => ingredientToProduct.getOrElse(p.quality, newProdRes()) * p.count
+      ).reduce(_ + _).addProdUses(qual, sameQualProductRatio * (1 - sameQualIngredientRatio))
+      .addRecUses(qual, sameQualProductRatio * (1 - sameQualIngredientRatio))
+      val allHigherQualRes = (higherQualRes + higherQualResFromIngredients
+      ).addProdUses(qual, sameQualProductRatio * sameQualIngredientRatio)
+      .addRecUses(qual, sameQualProductRatio * sameQualIngredientRatio)
+      val ingredientCost = 1 - sameQualIngredients
+      ingredientToProduct(qual) = allHigherQualRes / ingredientCost
+      productToProduct(qual) = ingredients.map(p => ingredientToProduct(p.quality) * p.count).reduce(_ + _)
     }
-    1 / ingredientToProduct(ingredientQuality)
+
+    val ProductionRes(resCount, prodMachines, recMachines) = ingredientToProduct(ingredientQual)
+    val needed = 1 / resCount
+    ProductionRes(needed,
+      prodMachines.view.mapValues(_ * needed * craftingTimeSec).toMap,
+      recMachines.view.mapValues(_ * needed * recipeCraftingTimeSec / 8).toMap)
   }
 }
