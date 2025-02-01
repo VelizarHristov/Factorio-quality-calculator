@@ -5,10 +5,13 @@ val scala3Version = "3.6.3"
 lazy val root = project
   .in(file("."))
   .enablePlugins(ScalaJSPlugin)
+  .enablePlugins(BuildInfoPlugin)
   .settings(
     name := "FactorioQualityCalculator",
-    version := "0.2.0",
+    version := "0.2",
     scalaVersion := scala3Version,
+    buildInfoKeys := Seq[BuildInfoKey](version),
+    buildInfoPackage := "calculator",
 
     scalaJSUseMainModuleInitializer := true,
 
