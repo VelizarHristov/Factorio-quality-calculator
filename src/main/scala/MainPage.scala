@@ -43,12 +43,10 @@ object MainPage {
           f"$ingredients%.8f"
         }
         val costRes = s"$costStr ${qualityToStr(ingredientQuality)} inputs needed for 1 ${qualityToStr(unlockedQuality)} output"
-        val a = (1 to 5).filter(qual => prodMachines(qual) > 0.0)
-        val Seq(prodStr, recStr) = Seq(prodMachines, recMachines).map(machines => {
-          (1 to 5).toList.filter(qual => machines(qual) > 0.0).map(qual => {
-            f"${machines(qual) / 60}%.2f ${qualityToStr(qual)}"
+        val prodStr = (1 to 5).toList.filter(qual => prodMachines(qual) > 0.0).map(qual => {
+            f"${prodMachines(qual) / 60}%.2f ${qualityToStr(qual)}"
           }).mkString(" | ")
-        })
+        val recStr = f"${recMachines.values.sum / 60}%.2f" 
         (costRes, "Machines: " + prodStr, "Recyclers: " + recStr)
       case None => ("Error parsing - productivity, quality, and machine speed must be decimal numbers.", "", "")
     }
