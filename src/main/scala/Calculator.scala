@@ -32,9 +32,9 @@ object Calculator {
 class Calculator(lastUnlockedQual: Int = 5) {
   import Calculator._
   def doRecipe(recipe: Recipe,
-              input: Item,
-              qualityInMachine: Double,
-              productivityInMachine: Double): Seq[Item] = {
+               input: Item,
+               qualityInMachine: Double,
+               productivityInMachine: Double): Seq[Item] = {
     val Recipe(_, outputName, recipeInputCount, recipeOutputCount) = recipe
     val Item(inputName, inputCount, inputQuality) = input
     val totalOutput = (input.count / recipeInputCount) * recipeOutputCount * (1 + productivityInMachine)
@@ -75,12 +75,11 @@ class Calculator(lastUnlockedQual: Int = 5) {
                  ingredientQual: Int,
                  recipeCraftingTimeSec: Double,
                  machineSpeed: Double): ProductionRes = {
-    val craftingTimeSec = recipeCraftingTimeSec / machineSpeed
     val Recipe(item1, item2, inputCount, outputCount) = recipe
     val productToProduct = mutable.Map(lastUnlockedQual -> newProdRes(1.0))
     val ingredientToProduct = mutable.Map(lastUnlockedQual -> newProdRes(
         (outputCount / inputCount) * (1 + prodInMachine),
-        Map(lastUnlockedQual -> (outputCount / inputCount))
+        Map(lastUnlockedQual -> 1)
     ))
     for (qual <- (lastUnlockedQual - 1) to ingredientQual by -1) {
       val products = doRecipe(recipe, Item(item1, 1, qual), qualInMachine, prodInMachine)
@@ -107,9 +106,11 @@ class Calculator(lastUnlockedQual: Int = 5) {
     }
 
     val ProductionRes(resCount, prodMachines, recMachines) = ingredientToProduct(ingredientQual)
-    val needed = 1 / resCount
-    ProductionRes(needed,
-      prodMachines.view.mapValues(_ * needed * craftingTimeSec).toMap,
-      recMachines.view.mapValues(_ * needed * recipeCraftingTimeSec / 8).toMap)
+    val totalInputsNeeded = 1 / resCount
+    val scale = totalInputsNeeded / inputCount
+    val craftingTimeSec = recipeCraftingTimeSec / machineSpeed
+    ProductionRes(totalInputsNeeded,
+      prodMachines.view.mapValues(_ * scale * craftingTimeSec).toMap,
+      recMachines.view.mapValues(_ * scale * recipeCraftingTimeSec / 8).toMap)
   }
 }
