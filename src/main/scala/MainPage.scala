@@ -14,10 +14,11 @@ object MainPage {
   def qualityToStr = qualities.toMap.apply
   def formatNumber(n: Double) =
     val num = 
-    if n >= 1 then
-      f"$n%.2f"
-    else // show first 3 non-zero digits, e.g. 0.00402695 => 0.00403
-      val digitsBeforeFirstNonZero = -Math.log10(n).floor.toInt
+      if n >= 1 then
+        f"$n%.2f"
+      else
+        // show first 3 non-zero digits, e.g. 0.00402695 => 0.00403
+        val digitsBeforeFirstNonZero = -Math.log10(n).floor.toInt
         String.format(s"%1.${digitsBeforeFirstNonZero + 2}f", n)
     if num.contains('.') then
       // remove trailing zeroes after decimal point
@@ -26,6 +27,7 @@ object MainPage {
       num
 
   val ingredientQualityVar = Var(initial = 1)
+  val targetQualityVar = Var(initial = 5)
   val unlockedQualityVar = Var(initial = 5)
   val inputCountVar = Var(initial = 1)
   val outputCountVar = Var(initial = 1)
@@ -36,11 +38,11 @@ object MainPage {
   val machineSpeedStrVar = Var(initial = "1.25")
   val recyclerSpeedStrVar = Var(initial = "0.5")
 
-  val outputStrSignal = Signal.combine(ingredientQualityVar.signal, unlockedQualityVar.signal, inputCountVar.signal, outputCountVar.signal,
-    productivityStrVar.signal, recipeQualityStrVar.signal, recyclerQualityStrVar.signal, recipeCraftingTimeSecStrVar.signal, machineSpeedStrVar.signal
-  ).combineWith(recyclerSpeedStrVar.signal
-  ).map { case (ingredientQuality, unlockedQuality, inputCount, outputCount, productivityStr, recipeQualityStr, recyclerQualityStr, recipeCraftingTimeSecStr,
-                machineSpeedStr, recyclerSpeedStr) => {
+  val qualitiesSignal = Signal.combine(ingredientQualityVar.signal, unlockedQualityVar.signal, targetQualityVar.signal)
+  val outputStrSignal = Signal.combine(qualitiesSignal, inputCountVar.signal, outputCountVar.signal, productivityStrVar.signal, recipeQualityStrVar.signal,
+    recyclerQualityStrVar.signal, recipeCraftingTimeSecStrVar.signal, machineSpeedStrVar.signal, recyclerSpeedStrVar.signal
+  ).map { case ((ingredientQuality, unlockedQuality, targetQuality), inputCount, outputCount, productivityStr, recipeQualityStr, recyclerQualityStr,
+                recipeCraftingTimeSecStr, machineSpeedStr, recyclerSpeedStr) => {
     import Calculator._
     (for {
       prod <- productivityStr.toDoubleOption.map(_ / 100)
@@ -53,13 +55,16 @@ object MainPage {
       case Some((productivity, recipeQuality, recyclerQuality, recipeCraftingTimeSec, machineSpeed, recyclerSpeed)) =>
         val calc = Calculator(unlockedQuality)
         val recipe = Recipe("Tungsten Carbide", "Speed Module 3", inputCount, outputCount)
-        val ProductionRes(ingredients, prodMachines, recMachines) = calc.calcSpeeds(
-          recipe, recipeQuality, recyclerQuality, productivity, ingredientQuality, recipeCraftingTimeSec, machineSpeed, recyclerSpeed)
-        val costRes = s"${formatNumber(ingredients)} ${qualityToStr(ingredientQuality)} inputs needed for 1 ${qualityToStr(unlockedQuality)} output"
-        val prodStr = (1 to 5).toList.filter(qual => prodMachines(qual) > 0.0).map(qual => {
-            f"${formatNumber(prodMachines(qual) / 60)} ${qualityToStr(qual)}"
+        val ProductionRes(results, prodMachines, recMachines) = calc.calcSpeeds(
+          recipe, recipeQuality, recyclerQuality, productivity, ingredientQuality, targetQuality, recipeCraftingTimeSec, machineSpeed, recyclerSpeed)
+        val requiredIngredients = 1 / results(targetQuality)
+        val Seq(resStr, prodStr) = Seq(results, prodMachines).map(machines => {
+          (1 to 5).toList.filter(qual => machines(qual) > 0.0).map(qual => {
+            f"${formatNumber(machines(qual) * requiredIngredients)} ${qualityToStr(qual)}"
           }).mkString(" | ")
-        val recStr = formatNumber(recMachines.values.sum / 60)
+        })
+        val costRes = s"${formatNumber(requiredIngredients)} ${qualityToStr(ingredientQuality)} inputs needed to make: " + resStr
+        val recStr = formatNumber(recMachines.values.sum * requiredIngredients)
         (costRes, "Machines: " + prodStr, "Recyclers: " + recStr)
       case None => ("Error parsing - productivity, quality, and machine speed must be decimal numbers.", "", "")
     }
@@ -82,6 +87,14 @@ object MainPage {
         select(
           value <-- ingredientQualityVar.signal.map(_.toString),
           onChange.mapToValue.map(_.toInt) --> ingredientQualityVar,
+          qualities.map { case (num, str) => option(value := num.toString, str) }
+        )
+      ),
+      p(
+        "Target quality: ",
+        select(
+          value <-- targetQualityVar.signal.map(_.toString),
+          onChange.mapToValue.map(_.toInt) --> targetQualityVar,
           qualities.map { case (num, str) => option(value := num.toString, str) }
         )
       ),
