@@ -29,10 +29,13 @@ object MainPage {
   val recyclerQualityStrVar = Var(initial = "10.0")
   val recipeCraftingTimeSecStrVar = Var(initial = "1.0")
   val machineSpeedStrVar = Var(initial = "1.25")
+  val recyclerSpeedStrVar = Var(initial = "0.5")
 
   val outputStrSignal = Signal.combine(ingredientQualityVar.signal, unlockedQualityVar.signal, inputCountVar.signal, outputCountVar.signal,
     productivityStrVar.signal, recipeQualityStrVar.signal, recyclerQualityStrVar.signal, recipeCraftingTimeSecStrVar.signal, machineSpeedStrVar.signal
-  ).map { case (ingredientQuality, unlockedQuality, inputCount, outputCount, productivityStr, recipeQualityStr, recyclerQualityStr, recipeCraftingTimeSecStr, machineSpeedStr) => {
+  ).combineWith(recyclerSpeedStrVar.signal
+  ).map { case (ingredientQuality, unlockedQuality, inputCount, outputCount, productivityStr, recipeQualityStr, recyclerQualityStr, recipeCraftingTimeSecStr,
+                machineSpeedStr, recyclerSpeedStr) => {
     import Calculator._
     (for {
       prod <- productivityStr.toDoubleOption.map(_ / 100)
@@ -40,11 +43,13 @@ object MainPage {
       recyclerQual <- recyclerQualityStr.toDoubleOption.map(_ / 100)
       craftingTime <- recipeCraftingTimeSecStr.toDoubleOption
       spd <- machineSpeedStr.toDoubleOption
-    } yield (prod, recipeQual, recyclerQual, craftingTime, spd)) match {
-      case Some((productivity, recipeQuality, recyclerQuality, recipeCraftingTimeSec, machineSpeed)) =>
+      recSpd <- recyclerSpeedStr.toDoubleOption
+    } yield (prod, recipeQual, recyclerQual, craftingTime, spd, recSpd)) match {
+      case Some((productivity, recipeQuality, recyclerQuality, recipeCraftingTimeSec, machineSpeed, recyclerSpeed)) =>
         val calc = Calculator(unlockedQuality)
         val recipe = Recipe("Tungsten Carbide", "Speed Module 3", inputCount, outputCount)
-        val ProductionRes(ingredients, prodMachines, recMachines) = calc.calcSpeeds(recipe, recipeQuality, recyclerQuality, productivity, ingredientQuality, recipeCraftingTimeSec, machineSpeed)
+        val ProductionRes(ingredients, prodMachines, recMachines) = calc.calcSpeeds(
+          recipe, recipeQuality, recyclerQuality, productivity, ingredientQuality, recipeCraftingTimeSec, machineSpeed, recyclerSpeed)
         val costRes = s"${formatNumber(ingredients)} ${qualityToStr(ingredientQuality)} inputs needed for 1 ${qualityToStr(unlockedQuality)} output"
         val prodStr = (1 to 5).toList.filter(qual => prodMachines(qual) > 0.0).map(qual => {
             f"${formatNumber(prodMachines(qual) / 60)} ${qualityToStr(qual)}"
@@ -150,6 +155,16 @@ object MainPage {
           controlled(
             value <-- machineSpeedStrVar.signal.map(_.toString),
             onInput.mapToValue --> machineSpeedStrVar
+          )
+        )
+      ),
+      p(
+        label("Recycler speed: "),
+        input(
+          size(5),
+          controlled(
+            value <-- recyclerSpeedStrVar.signal.map(_.toString),
+            onInput.mapToValue --> recyclerSpeedStrVar
           )
         )
       ),

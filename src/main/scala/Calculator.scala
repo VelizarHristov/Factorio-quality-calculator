@@ -74,7 +74,8 @@ class Calculator(lastUnlockedQual: Int = 5) {
                  prodInMachine: Double,
                  ingredientQual: Int,
                  recipeCraftingTimeSec: Double,
-                 machineSpeed: Double): ProductionRes = {
+                 machineSpeed: Double,
+                 recyclerSpeed: Double): ProductionRes = {
     val Recipe(item1, item2, inputCount, outputCount) = recipe
     val productToProduct = mutable.Map(lastUnlockedQual -> newProdRes(1.0))
     val ingredientToProduct = mutable.Map(lastUnlockedQual -> newProdRes(
@@ -109,8 +110,9 @@ class Calculator(lastUnlockedQual: Int = 5) {
     val totalInputsNeeded = 1 / resCount
     val scale = totalInputsNeeded / inputCount
     val craftingTimeSec = recipeCraftingTimeSec / machineSpeed
+    val recyclingTimeSec = (recipeCraftingTimeSec / 16) / recyclerSpeed
     ProductionRes(totalInputsNeeded,
       prodMachines.view.mapValues(_ * scale * craftingTimeSec).toMap,
-      recMachines.view.mapValues(_ * scale * recipeCraftingTimeSec / 8).toMap)
+      recMachines.view.mapValues(_ * scale * recyclingTimeSec).toMap)
   }
 }
