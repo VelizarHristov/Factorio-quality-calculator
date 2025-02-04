@@ -1,7 +1,8 @@
 package calculator
 
 import com.raquo.laminar.api.L.{*, given}
-import scala.math.BigDecimal.RoundingMode
+
+import math.BigDecimal.RoundingMode
 
 object MainPage {
   val qualities = List(
@@ -11,6 +12,12 @@ object MainPage {
     4 -> "Epic",
     5 -> "Legendary")
   def qualityToStr = qualities.toMap.apply
+  def formatNumber(n: Double) =
+    if n >= 1 then
+      f"$n%.2f"
+    else // show first 3 non-zero digits, e.g. 0.00402695 => 0.00403
+      val digitsBeforeFirstNonZero = -Math.log10(n).floor.toInt
+      String.format(s"%1.${digitsBeforeFirstNonZero + 2}f", n)
 
   val ingredientQualityVar = Var(initial = 1)
   val unlockedQualityVar = Var(initial = 5)
@@ -37,16 +44,11 @@ object MainPage {
         val calc = Calculator(unlockedQuality)
         val recipe = Recipe("Tungsten Carbide", "Speed Module 3", inputCount, outputCount)
         val ProductionRes(ingredients, prodMachines, recMachines) = calc.calcSpeeds(recipe, recipeQuality, recyclerQuality, productivity, ingredientQuality, recipeCraftingTimeSec, machineSpeed)
-        val costStr = if (ingredients >= 1) {
-          f"$ingredients%.2f"
-        } else {
-          f"$ingredients%.8f"
-        }
-        val costRes = s"$costStr ${qualityToStr(ingredientQuality)} inputs needed for 1 ${qualityToStr(unlockedQuality)} output"
+        val costRes = s"${formatNumber(ingredients)} ${qualityToStr(ingredientQuality)} inputs needed for 1 ${qualityToStr(unlockedQuality)} output"
         val prodStr = (1 to 5).toList.filter(qual => prodMachines(qual) > 0.0).map(qual => {
-            f"${prodMachines(qual) / 60}%.2f ${qualityToStr(qual)}"
+            f"${formatNumber(prodMachines(qual) / 60)} ${qualityToStr(qual)}"
           }).mkString(" | ")
-        val recStr = f"${recMachines.values.sum / 60}%.2f" 
+        val recStr = formatNumber(recMachines.values.sum / 60)
         (costRes, "Machines: " + prodStr, "Recyclers: " + recStr)
       case None => ("Error parsing - productivity, quality, and machine speed must be decimal numbers.", "", "")
     }
