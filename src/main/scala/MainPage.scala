@@ -17,7 +17,8 @@ object MainPage {
       f"$n%.2f"
     else // show first 3 non-zero digits, e.g. 0.00402695 => 0.00403
       val digitsBeforeFirstNonZero = -Math.log10(n).floor.toInt
-      String.format(s"%1.${digitsBeforeFirstNonZero + 2}f", n)
+      val formatted = String.format(s"%1.${digitsBeforeFirstNonZero + 2}f", n)
+      formatted.dropRight(2) ++ formatted.takeRight(2).reverse.dropWhile(_ == '0').reverse
 
   val ingredientQualityVar = Var(initial = 1)
   val unlockedQualityVar = Var(initial = 5)
