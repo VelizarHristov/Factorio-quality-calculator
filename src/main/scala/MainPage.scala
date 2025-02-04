@@ -13,12 +13,17 @@ object MainPage {
     5 -> "Legendary")
   def qualityToStr = qualities.toMap.apply
   def formatNumber(n: Double) =
+    val num = 
     if n >= 1 then
       f"$n%.2f"
     else // show first 3 non-zero digits, e.g. 0.00402695 => 0.00403
       val digitsBeforeFirstNonZero = -Math.log10(n).floor.toInt
-      val formatted = String.format(s"%1.${digitsBeforeFirstNonZero + 2}f", n)
-      formatted.dropRight(2) ++ formatted.takeRight(2).reverse.dropWhile(_ == '0').reverse
+        String.format(s"%1.${digitsBeforeFirstNonZero + 2}f", n)
+    if num.contains('.') then
+      // remove trailing zeroes after decimal point
+      num.reverse.dropWhile(_ == '0').dropWhile(_ == '.').reverse
+    else
+      num
 
   val ingredientQualityVar = Var(initial = 1)
   val unlockedQualityVar = Var(initial = 5)
