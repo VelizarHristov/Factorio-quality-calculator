@@ -18,7 +18,7 @@ object Calculator {
       (1 to 5).map(i => i -> (prodMachine(i) + that.prodMachine(i))).toMap,
       (1 to 5).map(i => i -> (recMachine(i) + that.recMachine(i))).toMap
     )
-    def addResults(qual: Int, count: Double) =  copy(results = results.updatedWith(qual)(_.map(_ + count)))
+    def addResults(qual: Int, count: Double) = copy(results = results.updatedWith(qual)(_.map(_ + count)))
     def addProdUses(qual: Int, uses: Double) = copy(prodMachine = prodMachine.updatedWith(qual)(_.map(_ + uses)))
     def addRecUses(qual: Int, uses: Double) = copy(recMachine = recMachine.updatedWith(qual)(_.map(_ + uses)))
   }
@@ -77,6 +77,7 @@ class Calculator(lastUnlockedQual: Int = 5) {
                  recipeCraftingTimeSec: Double,
                  machineSpeed: Double,
                  recyclerSpeed: Double): ProductionRes = {
+    println("!-!- calcSpeeds -!-!")
     val Recipe(item1, item2, inputCount, outputCount) = recipe
     val productToProduct = mutable.Map(lastUnlockedQual -> newProdRes(Map(lastUnlockedQual -> 1)))
     val ingredientToProduct = mutable.Map(lastUnlockedQual -> newProdRes(
@@ -87,18 +88,18 @@ class Calculator(lastUnlockedQual: Int = 5) {
       val products = doRecipe(recipe, Item(item1, 1, qual), qualInMachine, prodInMachine)
       val sameQualProducts = products.minBy(_.quality).count
       val sameQualProductRatio = sameQualProducts / products.map(_.count).sum
-      val higherQualRes = products.map{ case Item(_, count, quality) =>
+      val higherQualRes = products.filter(_.quality != qual).map{ case Item(_, count, quality) =>
         if (quality >= targetQual)
           newProdRes(Map(quality -> count))
         else
-          productToProduct.getOrElse(quality, (newProdRes())) * count
+          productToProduct(quality) * count
       }.reduce(_ + _).addProdUses(qual, 1 - sameQualProductRatio)
 
       val ingredientsOf1 = doRecycle(recipe, Item(item2, 1, qual), qualInRec)
       val nextIngredients = ingredientsOf1.map(i => i.copy(count = i.count * sameQualProducts))
       val sameQualIngredients = nextIngredients.minBy(_.quality).count
       val sameQualIngredientRatio = sameQualIngredients / nextIngredients.map(_.count).sum
-      val higherQualResFromIngredients = nextIngredients.map(
+      val higherQualResFromIngredients = nextIngredients.filter(_.quality != qual).map(
         p => ingredientToProduct.getOrElse(p.quality, newProdRes()) * p.count
       ).reduce(_ + _).addProdUses(qual, sameQualProductRatio * (1 - sameQualIngredientRatio))
       .addRecUses(qual, sameQualProductRatio * (1 - sameQualIngredientRatio))
