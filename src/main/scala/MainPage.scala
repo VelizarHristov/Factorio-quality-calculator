@@ -1,8 +1,6 @@
 package calculator
 
-import com.raquo.laminar.api.L.{*, given}
-
-import math.BigDecimal.RoundingMode
+import com.raquo.laminar.api.L.*
 
 object MainPage:
     val qualities = List(

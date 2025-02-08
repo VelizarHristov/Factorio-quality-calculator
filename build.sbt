@@ -1,6 +1,12 @@
 import org.scalajs.linker.interface.ModuleSplitStyle
 
 val scala3Version = "3.6.3"
+val compilerOptions = Seq(
+  "-unchecked",
+  "-deprecation",
+  "-Wunused:all",
+  "-Xlint:all"
+)
 
 lazy val root = project
   .in(file("."))
@@ -12,6 +18,7 @@ lazy val root = project
     scalaVersion := scala3Version,
     buildInfoKeys := Seq[BuildInfoKey](version),
     buildInfoPackage := "calculator",
+    scalacOptions ++= compilerOptions,
 
     scalaJSUseMainModuleInitializer := true,
 
