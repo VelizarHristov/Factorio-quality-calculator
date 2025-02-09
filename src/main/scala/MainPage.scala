@@ -2,7 +2,9 @@ package calculator
 
 import com.raquo.laminar.api.L.*
 
-object MainPage:
+import factorio_data.{Item, Recipe}
+
+class MainPage(items: Vector[Item], recipes: Vector[Recipe]):
     val qualities = List(
         1 -> "Normal",
         2 -> "Uncommon",
@@ -52,7 +54,7 @@ object MainPage:
             } yield (prod, recipeQual, recyclerQual, craftingTime, spd, recSpd)) match
                 case Some((productivity, recipeQuality, recyclerQuality, recipeCraftingTimeSec, machineSpeed, recyclerSpeed)) =>
                     val calc = Calculator(unlockedQuality)
-                    val recipe = Recipe("Tungsten Carbide", "Speed Module 3", inputCount, outputCount)
+                    val recipe = Calculator.Recipe("Tungsten Carbide", "Speed Module 3", inputCount, outputCount)
                     val ProductionRes(results, prodMachines, recMachines) = calc.calcSpeeds(
                         recipe, recipeQuality, recyclerQuality, productivity, ingredientQuality, targetQuality, recipeCraftingTimeSec, machineSpeed, recyclerSpeed)
                     val requiredIngredients = 1 / results(targetQuality)
@@ -66,7 +68,7 @@ object MainPage:
                     (costRes, "Machines: " + prodStr, "Recyclers: " + recStr)
                 case None => ("Error parsing - productivity, quality, and machine speed must be decimal numbers.", "", "")
 
-    def apply(): HtmlElement =
+    def render(): HtmlElement =
         div(
             h2("Description"),
             p(

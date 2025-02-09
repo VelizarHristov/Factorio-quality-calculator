@@ -1,11 +1,19 @@
 package calculator
 
-import com.raquo.laminar.api.L.renderOnDomContentLoaded
-import org.scalajs.dom
+import com.raquo.laminar.api.L.render
+import org.scalajs.dom.{document, fetch, RequestInit, HttpMethod}
+
+import concurrent.ExecutionContext
 
 @main
 def main(): Unit =
-    renderOnDomContentLoaded(
-        dom.document.getElementById("app"),
-        MainPage()
-    )
+    given ExecutionContext = ExecutionContext.global
+    for response <- fetch("/data.json", new RequestInit { method = HttpMethod.GET }).toFuture
+        jsonStr <- response.text().toFuture
+    do
+        val (items, recipes) = DataParser.parse(jsonStr)
+        val mainPage = MainPage(items, recipes)
+        render(
+            document.getElementById("app"),
+            mainPage.render()
+        )

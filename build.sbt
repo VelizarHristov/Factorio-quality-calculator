@@ -31,4 +31,16 @@ lazy val root = project
     libraryDependencies += "org.scalameta" %% "munit" % "1.0.0" % Test,
     libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "2.8.0",
     libraryDependencies += "com.raquo" %%% "laminar" % "17.2.0",
+    libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.1.0"
+  )
+
+lazy val preprocessor = project
+  .in(file("preprocessing"))
+  .settings(
+    name := "DataPreprocessor",
+    version := "1.0",
+    scalaVersion := scala3Version,
+    scalacOptions ++= compilerOptions,
+
+    libraryDependencies += "com.lihaoyi" %% "upickle" % "4.1.0"
   )
