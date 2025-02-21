@@ -31,7 +31,8 @@ lazy val root = project
     libraryDependencies += "org.scalameta" %% "munit" % "1.0.0" % Test,
     libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "2.8.0",
     libraryDependencies += "com.raquo" %%% "laminar" % "17.2.0",
-    libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.1.0"
+    libraryDependencies += "com.lihaoyi" %%% "upickle" % "4.1.0",
+    libraryDependencies += "be.doeraene" %%% "web-components-ui5" % "2.1.0"
   )
 
 lazy val preprocessor = project
