@@ -1,8 +1,7 @@
 package calculator
 
 import com.raquo.laminar.api.L.*
-import be.doeraene.webcomponents.ui5.ComboBox
-import be.doeraene.webcomponents.ui5.TabContainer
+import be.doeraene.webcomponents.ui5.{ComboBox, TabContainer}
 
 import factorio_data.{Item, Recipe}
 
@@ -38,31 +37,42 @@ class MainPage(items: Vector[Item], recipes: Vector[Recipe]):
     val inputCountVar = Var(initial = 1)
     val outputCountVar = Var(initial = 1)
     val productivityStrVar = Var(initial = "0.0")
-    val recipeQualityStrVar = Var(initial = "10.0")
+    val machineQualityStrVar = Var(initial = "10.0")
     val recyclerQualityStrVar = Var(initial = "10.0")
     val recipeCraftingTimeSecStrVar = Var(initial = "1.0")
     val machineSpeedStrVar = Var(initial = "1.25")
     val recyclerSpeedStrVar = Var(initial = "0.5")
 
+    val targetQualSelectionObserver = Observer[Int](newValue => {
+        targetQualityVar.set(newValue)
+        if (unlockedQualityVar.now() < newValue)
+            unlockedQualityVar.set(newValue)
+    })
+    val ingredientQualSelectionObserver = Observer[Int](newValue => {
+        ingredientQualityVar.set(newValue)
+        if (targetQualityVar.now() < newValue)
+            targetQualSelectionObserver.onNext(newValue)
+    })
+
     val qualitiesSignal = Signal.combine(ingredientQualityVar.signal, unlockedQualityVar.signal, targetQualityVar.signal)
-    val outputStrSignal = Signal.combine(qualitiesSignal, inputCountVar.signal, outputCountVar.signal, productivityStrVar.signal, recipeQualityStrVar.signal,
+    val outputStrSignal = Signal.combine(qualitiesSignal, inputCountVar.signal, outputCountVar.signal, productivityStrVar.signal, machineQualityStrVar.signal,
         recyclerQualityStrVar.signal, recipeCraftingTimeSecStrVar.signal, machineSpeedStrVar.signal, recyclerSpeedStrVar.signal).map:
-        case ((ingredientQuality, unlockedQuality, targetQuality), inputCount, outputCount, productivityStr, recipeQualityStr, recyclerQualityStr,
+        case ((ingredientQuality, unlockedQuality, targetQuality), inputCount, outputCount, productivityStr, machineQualityStr, recyclerQualityStr,
               recipeCraftingTimeSecStr, machineSpeedStr, recyclerSpeedStr) =>
             (for {
                 prod <- productivityStr.toDoubleOption.map(_ / 100)
-                recipeQual <- recipeQualityStr.toDoubleOption.map(_ / 100)
+                machineQual <- machineQualityStr.toDoubleOption.map(_ / 100)
                 recyclerQual <- recyclerQualityStr.toDoubleOption.map(_ / 100)
                 craftingTime <- recipeCraftingTimeSecStr.toDoubleOption
                 spd <- machineSpeedStr.toDoubleOption
                 recSpd <- recyclerSpeedStr.toDoubleOption
-            } yield (prod, recipeQual, recyclerQual, craftingTime, spd, recSpd)) match
-                case Some((productivity, recipeQuality, recyclerQuality, recipeCraftingTimeSec, machineSpeed, recyclerSpeed)) =>
+            } yield (prod, machineQual, recyclerQual, craftingTime, spd, recSpd)) match
+                case Some((productivity, machineQuality, recyclerQuality, recipeCraftingTimeSec, machineSpeed, recyclerSpeed)) =>
                     import Calculator._
                     val calc = Calculator(unlockedQuality)
                     val recipe = Calculator.Recipe("Tungsten Carbide", "Speed Module 3", inputCount, outputCount)
                     val ProductionRes(results, prodMachines, recMachines) = calc.calcSpeeds(
-                        recipe, recipeQuality, recyclerQuality, productivity, ingredientQuality, targetQuality, recipeCraftingTimeSec, machineSpeed, recyclerSpeed)
+                        recipe, machineQuality, recyclerQuality, productivity, ingredientQuality, targetQuality, recipeCraftingTimeSec, machineSpeed, recyclerSpeed)
                     val requiredIngredients = 1 / results(targetQuality)
                     val Seq(resStr, prodStr) = Seq(results, prodMachines).map(machines => {
                         (1 to 5).toList.filter(qual => machines(qual) > 0.0).map(qual => {
@@ -138,29 +148,45 @@ class MainPage(items: Vector[Item], recipes: Vector[Recipe]):
                     )
                 )
             ),
-            p(
-                "Ingredient quality: ",
-                select(
-                    value <-- ingredientQualityVar.signal.map(_.toString),
-                    onChange.mapToValue.map(_.toInt) --> ingredientQualityVar,
-                    qualities.map { case (num, str) => option(value := num.toString, str) }
-                )
-            ),
-            p(
-                "Target quality: ",
-                select(
-                    value <-- targetQualityVar.signal.map(_.toString),
-                    onChange.mapToValue.map(_.toInt) --> targetQualityVar,
-                    qualities.map { case (num, str) => option(value := num.toString, str) }
-                )
-            ),
-            p(
-                "Unlocked quality: ",
-                select(
-                    value <-- unlockedQualityVar.signal.map(_.toString),
-                    onChange.mapToValue.map(_.toInt) --> unlockedQualityVar,
-                    qualities.map { case (num, str) => option(value := num.toString, str) }
-                )
+            // TODO: make the buttons smaller
+            div(
+                cls := "grid-container",
+                span(
+                    "Ingredient quality: "
+                ),
+                qualities.map: (num, str) =>
+                    img(
+                        src := s"/Quality_${str.toLowerCase}.png",
+                        cls("quality"),
+                        cls("selected-quality") <-- ingredientQualityVar.signal.map(_ == num),
+                        onClick.map(_ => num) --> ingredientQualSelectionObserver
+                    ),
+                span(
+                    "Target quality: "
+                ),
+                (1 to 4).toList.map: i =>
+                    div(hidden <-- ingredientQualityVar.signal.map(i >= _)),
+                qualities.map: (num, str) =>
+                    img(
+                        src := s"/Quality_${str.toLowerCase}.png",
+                        cls("quality"),
+                        cls("selected-quality") <-- targetQualityVar.signal.map(_ == num),
+                        hidden <-- ingredientQualityVar.signal.map(num < _),
+                        onClick.map(_ => num) --> targetQualSelectionObserver
+                    ),
+                span(
+                    "Unlocked quality: "
+                ),
+                (1 to 4).toList.map: i =>
+                    div(hidden <-- targetQualityVar.signal.map(i >= _)),
+                qualities.map: (num, str) =>
+                    img(
+                        src := s"/Quality_${str.toLowerCase}.png",
+                        cls("quality"),
+                        cls("selected-quality") <-- unlockedQualityVar.signal.map(_ == num),
+                        hidden <-- targetQualityVar.signal.map(num < _),
+                        onClick.map(_ => num) --> unlockedQualityVar
+                    )
             ),
             p(
                 label("Productivity (%): "),
@@ -173,22 +199,12 @@ class MainPage(items: Vector[Item], recipes: Vector[Recipe]):
                 )
             ),
             p(
-                label("Recipe quality (%): "),
+                label("Machine quality (%): "),
                 input(
                     size(5),
                     controlled(
-                        value <-- recipeQualityStrVar.signal.map(_.toString),
-                        onInput.mapToValue --> recipeQualityStrVar
-                    )
-                )
-            ),
-            p(
-                label("Recycler quality (%): "),
-                input(
-                    size(5),
-                    controlled(
-                        value <-- recyclerQualityStrVar.signal.map(_.toString),
-                        onInput.mapToValue --> recyclerQualityStrVar
+                        value <-- machineQualityStrVar.signal.map(_.toString),
+                        onInput.mapToValue --> machineQualityStrVar
                     )
                 )
             ),
@@ -199,6 +215,16 @@ class MainPage(items: Vector[Item], recipes: Vector[Recipe]):
                     controlled(
                         value <-- machineSpeedStrVar.signal.map(_.toString),
                         onInput.mapToValue --> machineSpeedStrVar
+                    )
+                )
+            ),
+            p(
+                label("Recycler quality (%): "),
+                input(
+                    size(5),
+                    controlled(
+                        value <-- recyclerQualityStrVar.signal.map(_.toString),
+                        onInput.mapToValue --> recyclerQualityStrVar
                     )
                 )
             ),

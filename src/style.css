@@ -94,3 +94,24 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+.quality {
+  cursor: pointer;
+  height: 80%;
+  width: 80%;
+}
+
+.quality:not(.selected-quality):hover {
+  background-color: darkgray;
+}
+
+.selected-quality {
+  background-color: lightblue;
+}
+
+
+.grid-container {
+  display: grid;
+  grid-template-columns: 170px repeat(5, 50px);
+  justify-content: center;
+}
