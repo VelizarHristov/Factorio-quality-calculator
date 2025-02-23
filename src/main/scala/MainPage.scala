@@ -15,18 +15,22 @@ class MainPage(items: Vector[Item], recipes: Vector[Recipe]):
     val recipeNameToRecipe = recipes.map(i => i.name -> i).toMap
     def qualityToStr = qualities.toMap.apply
     def formatNumber(n: Double) =
-        val num = 
-            if n >= 1 then
-                f"$n%.2f"
-            else
-                // show first 3 non-zero digits, e.g. 0.00402695 => 0.00403
-                val digitsBeforeFirstNonZero = -Math.log10(n).floor.toInt
-                String.format(s"%1.${digitsBeforeFirstNonZero + 2}f", n)
-        if num.contains('.') then
-            // remove trailing zeroes after decimal point
-            num.reverse.dropWhile(_ == '0').dropWhile(_ == '.').reverse
+        if n == 0 then
+            0
         else
-            num
+            val num = 
+                if n >= 1 then
+                    f"$n%.2f"
+                else
+                    // show first 3 non-zero digits, e.g. 0.00402695 => 0.00403
+                    val digitsBeforeFirstNonZero = -Math.log10(n).floor.toInt
+                    println("digitsBeforeFirstNonZero = " + digitsBeforeFirstNonZero)
+                    String.format(s"%1.${digitsBeforeFirstNonZero + 2}f", n)
+            if num.contains('.') then
+                // remove trailing zeroes after decimal point
+                num.reverse.dropWhile(_ == '0').dropWhile(_ == '.').reverse
+            else
+                num
     def recipeComboItems(cb: ComboBox.type) = recipes.map(r =>
         cb.item(_.text := r.name)
     )
