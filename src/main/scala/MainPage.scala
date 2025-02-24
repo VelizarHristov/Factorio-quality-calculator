@@ -24,7 +24,6 @@ class MainPage(items: Vector[Item], recipes: Vector[Recipe]):
                 else
                     // show first 3 non-zero digits, e.g. 0.00402695 => 0.00403
                     val digitsBeforeFirstNonZero = -Math.log10(n).floor.toInt
-                    println("digitsBeforeFirstNonZero = " + digitsBeforeFirstNonZero)
                     String.format(s"%1.${digitsBeforeFirstNonZero + 2}f", n)
             if num.contains('.') then
                 // remove trailing zeroes after decimal point
@@ -74,9 +73,9 @@ class MainPage(items: Vector[Item], recipes: Vector[Recipe]):
                 case Some((productivity, machineQuality, recyclerQuality, recipeCraftingTimeSec, machineSpeed, recyclerSpeed)) =>
                     import Calculator._
                     val calc = Calculator(unlockedQuality)
-                    val recipe = Calculator.Recipe("Tungsten Carbide", "Speed Module 3", inputCount, outputCount)
                     val ProductionRes(results, prodMachines, recMachines) = calc.calcSpeeds(
-                        recipe, machineQuality, recyclerQuality, productivity, ingredientQuality, targetQuality, recipeCraftingTimeSec, machineSpeed, recyclerSpeed)
+                        inputCount, outputCount, machineQuality, recyclerQuality, productivity,
+                        ingredientQuality, targetQuality, recipeCraftingTimeSec, machineSpeed, recyclerSpeed)
                     val requiredIngredients = 1 / results(targetQuality)
                     val Seq(resStr, prodStr) = Seq(results, prodMachines).map(machines => {
                         (1 to 5).toList.filter(qual => machines(qual) > 0.0).map(qual => {
@@ -152,7 +151,6 @@ class MainPage(items: Vector[Item], recipes: Vector[Recipe]):
                     )
                 )
             ),
-            // TODO: make the buttons smaller
             div(
                 cls := "grid-container",
                 span(

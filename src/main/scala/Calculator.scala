@@ -4,8 +4,7 @@ import collection.mutable
 
 object Calculator:
     // quality is represented by numbers 1-5 for normal-legendary (in-game it's 0,1,2,3,5 instead)
-    case class Item(name: String, count: Double, quality: Int)
-    case class Recipe(item1: String, item2: String, inputCount: Double, outputCount: Double)
+    case class Item(count: Double, quality: Int)
     case class ProductionRes(results: Map[Int, Double], prodMachine: Map[Int, Double], recMachine: Map[Int, Double]):
         def *(by: Double) = ProductionRes(
             results.view.mapValues(_ * by).toMap,
@@ -27,23 +26,21 @@ object Calculator:
 
 class Calculator(lastUnlockedQual: Int = 5):
     import Calculator._
-    def doRecipe(recipe: Recipe,
-                 input: Item,
+    def doRecipe(input: Item,
                  qualityInMachine: Double,
                  productivityInMachine: Double): Seq[Item] =
-        val Recipe(_, outputName, recipeInputCount, recipeOutputCount) = recipe
-        val Item(inputName, inputCount, inputQuality) = input
-        val totalOutput = (input.count / recipeInputCount) * recipeOutputCount * (1 + productivityInMachine)
+        val Item(inputCount, inputQuality) = input
+        val totalOutput = inputCount * (1 + productivityInMachine)
         if inputQuality == lastUnlockedQual then
-            List(Item(outputName, totalOutput, lastUnlockedQual))
+            List(Item(totalOutput, lastUnlockedQual))
         else
             Item(
-                outputName, totalOutput * (1 - qualityInMachine), inputQuality
-            ) +: doRecipe(recipe, Item(inputName, inputCount * qualityInMachine, inputQuality + 1), 0.1, productivityInMachine)
+                totalOutput * (1 - qualityInMachine), inputQuality
+            ) +: doRecipe(Item(inputCount * qualityInMachine, inputQuality + 1), 0.1, productivityInMachine)
 
-    def doRecycle(recipe: Recipe, input: Item, qualityInMachine: Double): Seq[Item] =
-        val Recipe(item1, item2, count1, count2) = recipe
-        doRecipe(Recipe(item2, item1, count2 * 4, count1), input, qualityInMachine, 0)
+    def doRecycle(input: Item, qualityInRecycler: Double): Seq[Item] =
+        doRecipe(input, qualityInRecycler, 0).map:
+            case Item(count, qual) => Item(count / 4, qual)
 
     /**
      * First calculate how many legendary products we are getting per epic ingredient
@@ -61,42 +58,37 @@ class Calculator(lastUnlockedQual: Int = 5):
      *     Any epic products or ingredients are converted to legendary using the already calculated ratio above.
      * Repeat for the lower qualities.
      */
-    def calcSpeeds(recipe: Recipe,
-                   qualInMachine: Double,
-                   qualInRec: Double,
-                   prodInMachine: Double,
-                   ingredientQual: Int,
-                   targetQual: Int,
-                   recipeCraftingTimeSec: Double,
-                   machineSpeed: Double,
-                   recyclerSpeed: Double): ProductionRes =
-        val Recipe(item1, item2, inputCount, outputCount) = recipe
+    def calcSpeedsUnit(qualInMachine: Double,
+                       qualInRec: Double,
+                       prodInMachine: Double,
+                       ingredientQual: Int,
+                       targetQual: Int): ProductionRes =
         val productToProduct = mutable.Map(lastUnlockedQual -> newProdRes(Map(lastUnlockedQual -> 1)))
         val ingredientToProduct = mutable.Map(lastUnlockedQual -> newProdRes(
-            Map(lastUnlockedQual -> (outputCount / inputCount) * (1 + prodInMachine)),
+            Map(lastUnlockedQual -> (1 + prodInMachine)),
             Map(lastUnlockedQual -> 1)
         ))
         if ingredientQual == targetQual then
             val products = doRecipe(
-                recipe, Item(item1, 1, ingredientQual), qualInMachine, prodInMachine
-            ).map{ case Item(_, count, quality) =>
+                Item(1, ingredientQual), qualInMachine, prodInMachine
+            ).map{ case Item(count, quality) =>
                 quality -> count
             }.toMap
             val prodRes = newProdRes(products, toQualMap(Map(ingredientQual -> 1.0)))
             ingredientToProduct(ingredientQual) = prodRes
         else
             for (qual <- (lastUnlockedQual - 1) to ingredientQual by -1)
-                val products = doRecipe(recipe, Item(item1, 1, qual), qualInMachine, prodInMachine)
+                val products = doRecipe(Item(1, qual), qualInMachine, prodInMachine)
                 val sameQualProducts = products.minBy(_.quality).count
                 val sameQualProductRatio = sameQualProducts / products.map(_.count).sum
-                val higherQualRes = products.filter(_.quality != qual).map{ case Item(_, count, quality) =>
+                val higherQualRes = products.filter(_.quality != qual).map{ case Item(count, quality) =>
                     if (quality >= targetQual)
                         newProdRes(Map(quality -> count))
                     else
                         productToProduct(quality) * count
                 }.reduce(_ + _).addProdUses(qual, 1 - sameQualProductRatio)
 
-                val ingredientsOf1 = doRecycle(recipe, Item(item2, 1, qual), qualInRec)
+                val ingredientsOf1 = doRecycle(Item(1, qual), qualInRec)
                 val nextIngredients = ingredientsOf1.map(i => i.copy(count = i.count * sameQualProducts))
                 val sameQualIngredients = nextIngredients.minBy(_.quality).count
                 val sameQualIngredientRatio = sameQualIngredients / nextIngredients.map(_.count).sum
@@ -110,10 +102,22 @@ class Calculator(lastUnlockedQual: Int = 5):
                 val ingredientCost = 1 - sameQualIngredients
                 ingredientToProduct(qual) = allHigherQualRes / ingredientCost
                 productToProduct(qual) = ingredientsOf1.map(p => ingredientToProduct(p.quality) * p.count).reduce(_ + _)
+        ingredientToProduct(ingredientQual)
 
-        val ProductionRes(resCount, prodMachines, recMachines) = ingredientToProduct(ingredientQual)
+    def calcSpeeds(inputCount: Int,
+                   outputCount: Int,
+                   qualInMachine: Double,
+                   qualInRec: Double,
+                   prodInMachine: Double,
+                   ingredientQual: Int,
+                   targetQual: Int,
+                   recipeCraftingTimeSec: Double,
+                   machineSpeed: Double,
+                   recyclerSpeed: Double): ProductionRes =
+        val ProductionRes(resCount, prodMachines, recMachines) = calcSpeedsUnit(qualInMachine, qualInRec, prodInMachine, ingredientQual, targetQual)
         val craftingTimeSec = recipeCraftingTimeSec / machineSpeed
         val recyclingTimeSec = (recipeCraftingTimeSec / 16) / recyclerSpeed
-        ProductionRes(resCount,
+        ProductionRes(
+            resCount.view.mapValues(_ * outputCount / inputCount).toMap,
             prodMachines.view.mapValues(_ * craftingTimeSec / inputCount / 60).toMap,
             recMachines.view.mapValues(_ * recyclingTimeSec / inputCount / 60).toMap)
