@@ -1,7 +1,7 @@
 package calculator
 
 import com.raquo.laminar.api.L.*
-import be.doeraene.webcomponents.ui5.{ComboBox, TabContainer}
+import be.doeraene.webcomponents.ui5.ComboBox
 
 import factorio_data.{Item, Recipe}
 
@@ -37,12 +37,10 @@ class MainPage(items: Vector[Item], recipes: Vector[Recipe]):
     val ingredientQualityVar = Var(initial = 1)
     val targetQualityVar = Var(initial = 5)
     val unlockedQualityVar = Var(initial = 5)
-    val inputCountVar = Var(initial = 1)
-    val outputCountVar = Var(initial = 1)
+    val selectedRecipeVar = Var(initial = recipeNameToRecipe("Quality module 3"))
     val productivityStrVar = Var(initial = "0.0")
     val machineQualityStrVar = Var(initial = "10.0")
     val recyclerQualityStrVar = Var(initial = "10.0")
-    val recipeCraftingTimeSecStrVar = Var(initial = "1.0")
     val machineSpeedStrVar = Var(initial = "1.25")
     val recyclerSpeedStrVar = Var(initial = "0.5")
 
@@ -60,21 +58,23 @@ class MainPage(items: Vector[Item], recipes: Vector[Recipe]):
     })
 
     val qualitiesSignal = Signal.combine(ingredientQualityVar.signal, unlockedQualityVar.signal, targetQualityVar.signal)
-    val outputStrSignal = Signal.combine(qualitiesSignal, inputCountVar.signal, outputCountVar.signal, productivityStrVar.signal, machineQualityStrVar.signal,
-        recyclerQualityStrVar.signal, recipeCraftingTimeSecStrVar.signal, machineSpeedStrVar.signal, recyclerSpeedStrVar.signal).map:
-        case ((ingredientQuality, unlockedQuality, targetQuality), inputCount, outputCount, productivityStr, machineQualityStr, recyclerQualityStr,
-              recipeCraftingTimeSecStr, machineSpeedStr, recyclerSpeedStr) =>
+    val outputStrSignal = Signal.combine(qualitiesSignal, selectedRecipeVar.signal, productivityStrVar.signal, machineQualityStrVar.signal,
+        recyclerQualityStrVar.signal, machineSpeedStrVar.signal, recyclerSpeedStrVar.signal).map:
+        case ((ingredientQuality, unlockedQuality, targetQuality), selectedRecipe, productivityStr, machineQualityStr, recyclerQualityStr,
+              machineSpeedStr, recyclerSpeedStr) =>
             (for {
                 prod <- productivityStr.toDoubleOption.map(_ / 100)
                 machineQual <- machineQualityStr.toDoubleOption.map(_ / 100)
                 recyclerQual <- recyclerQualityStr.toDoubleOption.map(_ / 100)
-                craftingTime <- recipeCraftingTimeSecStr.toDoubleOption
                 spd <- machineSpeedStr.toDoubleOption
                 recSpd <- recyclerSpeedStr.toDoubleOption
-            } yield (prod, machineQual, recyclerQual, craftingTime, spd, recSpd)) match
-                case Some((productivity, machineQuality, recyclerQuality, recipeCraftingTimeSec, machineSpeed, recyclerSpeed)) =>
+            } yield (prod, machineQual, recyclerQual, spd, recSpd)) match
+                case Some((productivity, machineQuality, recyclerQuality, machineSpeed, recyclerSpeed)) =>
                     import Calculator._
                     val calc = Calculator(unlockedQuality)
+                    val inputCount = selectedRecipe.in.head._2   // TODO: handle multiple inputs
+                    val outputCount = selectedRecipe.out.head._2 // TODO: handle multiple inputs
+                    val recipeCraftingTimeSec = selectedRecipe.time
                     val ProductionRes(results, prodMachines, recMachines) = calc.calcSpeeds(
                         inputCount, outputCount, machineQuality, recyclerQuality, productivity,
                         ingredientQuality, targetQuality, recipeCraftingTimeSec, machineSpeed, recyclerSpeed)
@@ -88,11 +88,6 @@ class MainPage(items: Vector[Item], recipes: Vector[Recipe]):
                     val recStr = formatNumber(recMachines.values.sum * requiredIngredients)
                     (costRes, "Machines: " + prodStr, "Recyclers: " + recStr)
                 case None => ("Error parsing - productivity, quality, and machine speed must be decimal numbers.", "", "")
-    def onRecipeSelection(name: String) =
-        val recipe = recipeNameToRecipe(name)
-        inputCountVar.set(recipe.in.values.head) // TODO: handle multiple inputs
-        outputCountVar.set(recipe.out.values.head) // TODO: handle multiple outputs
-        recipeCraftingTimeSecStrVar.set(recipe.time.toString)
 
     def render(): HtmlElement =
         div(
@@ -103,55 +98,11 @@ class MainPage(items: Vector[Item], recipes: Vector[Recipe]):
                 "Version ", BuildInfo.version, " ", a("Github repo", href("https://github.com/VelizarHristov/Factorio-quality-calculator")) 
             ),
             h2("Calculator"),
-            TabContainer(
-                _.tab(
-                    _.text := "Recipe selection",
-                    ComboBox(
-                        _.placeholder := "Select recipe",
-                        onChange.mapToValue --> Observer(onRecipeSelection),
-                        recipeComboItems
-                    )
-                ),
-                _.tab(
-                    _.text := "Manual",
-                    div(
-                        p(
-                            "If the recipe has multiple different types of inputs then their required counts are always proportional with each other.", br(),
-                            "For example, an offshore pump requires 2 gears and 3 pipes. If you enter '2' for input count, then you will get the number of desired gears.", br(),
-                            "If the calculator tells you that you need 200 gears, then it also means that you need 300 pipes of the same quality, as their ratio is always 2:3."
-                        ),
-                        p(
-                            label("Input count: "),
-                            input(
-                                size(5),
-                                controlled(
-                                    value <-- inputCountVar.signal.map(_.toString),
-                                    onInput.mapToValue.filter(_.forall(Character.isDigit)).map(_.toInt) --> inputCountVar
-                                )
-                            )
-                        ),
-                        p(
-                            label("Output count: "),
-                            input(
-                                size(5),
-                                controlled(
-                                    value <-- outputCountVar.signal.map(_.toString),
-                                    onInput.mapToValue.filter(_.forall(Character.isDigit)).map(_.toInt) --> outputCountVar
-                                )
-                            )
-                        ),
-                        p(
-                            label("Recipe crafting time (seconds): "),
-                            input(
-                                size(5),
-                                controlled(
-                                    value <-- recipeCraftingTimeSecStrVar.signal.map(_.toString),
-                                    onInput.mapToValue --> recipeCraftingTimeSecStrVar
-                                )
-                            )
-                        ),
-                    )
-                )
+            ComboBox(
+                _.placeholder := "Select recipe",
+                value <-- selectedRecipeVar.signal.map(_.name),
+                onChange.mapToValue.map(recipeNameToRecipe) --> selectedRecipeVar,
+                recipeComboItems
             ),
             div(
                 cls := "grid-container",
