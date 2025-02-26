@@ -2,7 +2,6 @@
 
 This is WIP with some features already working. This is my to-do list:
 
-- Fix JS error when quality is changed in a way that automatically changes the quality of another category too
 - Pull down all recipes in the game, let the user choose from them
 	- Handle the case where a recipe recycles into itself, then you don't get to make it again, so the quality probabilities are lower, also the speeds are higher
 	- Clean the data - remove the recycling recipes (first, make sure that they're all possible to statically calculate)

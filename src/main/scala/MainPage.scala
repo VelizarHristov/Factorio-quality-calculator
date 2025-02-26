@@ -47,14 +47,16 @@ class MainPage(items: Vector[Item], recipes: Vector[Recipe]):
     val recyclerSpeedStrVar = Var(initial = "0.5")
 
     val unlockedQualitySelectionObserver = Observer[Int](newValue => {
-        unlockedQualityVar.set(newValue)
         if (targetQualityVar.now() > newValue)
             targetQualityVar.set(newValue)
+        unlockedQualityVar.set(newValue)
     })
     val ingredientQualSelectionObserver = Observer[Int](newValue => {
-        ingredientQualityVar.set(newValue)
         if (unlockedQualityVar.now() < newValue)
             unlockedQualitySelectionObserver.onNext(newValue)
+        if (targetQualityVar.now() < newValue)
+            targetQualityVar.set(newValue)
+        ingredientQualityVar.set(newValue)
     })
 
     val qualitiesSignal = Signal.combine(ingredientQualityVar.signal, unlockedQualityVar.signal, targetQualityVar.signal)
@@ -179,12 +181,14 @@ class MainPage(items: Vector[Item], recipes: Vector[Recipe]):
                 span(
                     "Target quality: "
                 ),
+                (1 to 4).toList.map: i =>
+                    div(hidden <-- ingredientQualityVar.signal.map(i >= _)),
                 qualities.map: (num, str) =>
                     img(
                         src := s"/Quality_${str.toLowerCase}.png",
                         cls("quality"),
                         cls("selected-quality") <-- targetQualityVar.signal.map(_ == num),
-                        hidden <-- unlockedQualityVar.signal.map(num > _),
+                        hidden <-- qualitiesSignal.signal.map { case (ingr, unl, _) => ingr > num || num > unl },
                         onClick.map(_ => num) --> targetQualityVar
                     ),
                 (2 to 5).toList.map: i =>
