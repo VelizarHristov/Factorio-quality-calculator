@@ -46,15 +46,15 @@ class MainPage(items: Vector[Item], recipes: Vector[Recipe]):
     val machineSpeedStrVar = Var(initial = "1.25")
     val recyclerSpeedStrVar = Var(initial = "0.5")
 
-    val targetQualSelectionObserver = Observer[Int](newValue => {
-        targetQualityVar.set(newValue)
-        if (unlockedQualityVar.now() < newValue)
-            unlockedQualityVar.set(newValue)
+    val unlockedQualitySelectionObserver = Observer[Int](newValue => {
+        unlockedQualityVar.set(newValue)
+        if (targetQualityVar.now() > newValue)
+            targetQualityVar.set(newValue)
     })
     val ingredientQualSelectionObserver = Observer[Int](newValue => {
         ingredientQualityVar.set(newValue)
-        if (targetQualityVar.now() < newValue)
-            targetQualSelectionObserver.onNext(newValue)
+        if (unlockedQualityVar.now() < newValue)
+            unlockedQualitySelectionObserver.onNext(newValue)
     })
 
     val qualitiesSignal = Signal.combine(ingredientQualityVar.signal, unlockedQualityVar.signal, targetQualityVar.signal)
@@ -164,7 +164,7 @@ class MainPage(items: Vector[Item], recipes: Vector[Recipe]):
                         onClick.map(_ => num) --> ingredientQualSelectionObserver
                     ),
                 span(
-                    "Target quality: "
+                    "Unlocked quality: "
                 ),
                 (1 to 4).toList.map: i =>
                     div(hidden <-- ingredientQualityVar.signal.map(i >= _)),
@@ -172,23 +172,23 @@ class MainPage(items: Vector[Item], recipes: Vector[Recipe]):
                     img(
                         src := s"/Quality_${str.toLowerCase}.png",
                         cls("quality"),
-                        cls("selected-quality") <-- targetQualityVar.signal.map(_ == num),
+                        cls("selected-quality") <-- unlockedQualityVar.signal.map(_ == num),
                         hidden <-- ingredientQualityVar.signal.map(num < _),
-                        onClick.map(_ => num) --> targetQualSelectionObserver
+                        onClick.map(_ => num) --> unlockedQualitySelectionObserver
                     ),
                 span(
-                    "Unlocked quality: "
+                    "Target quality: "
                 ),
-                (1 to 4).toList.map: i =>
-                    div(hidden <-- targetQualityVar.signal.map(i >= _)),
                 qualities.map: (num, str) =>
                     img(
                         src := s"/Quality_${str.toLowerCase}.png",
                         cls("quality"),
-                        cls("selected-quality") <-- unlockedQualityVar.signal.map(_ == num),
-                        hidden <-- targetQualityVar.signal.map(num < _),
-                        onClick.map(_ => num) --> unlockedQualityVar
-                    )
+                        cls("selected-quality") <-- targetQualityVar.signal.map(_ == num),
+                        hidden <-- unlockedQualityVar.signal.map(num > _),
+                        onClick.map(_ => num) --> targetQualityVar
+                    ),
+                (2 to 5).toList.map: i =>
+                    div(hidden <-- unlockedQualityVar.signal.map(i < _)),
             ),
             p(
                 label("Productivity (%): "),
