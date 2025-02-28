@@ -6,7 +6,6 @@ This is WIP with some features already working. This is my to-do list:
 	- Handle the case where a recipe recycles into itself, then you don't get to make it again, so the quality probabilities are lower, also the speeds are higher
 	- Clean the data
 		- Remove the recycling recipes (first, make sure that they're all possible to dynamically calculate)
-		- Remove the mining recipes
 	- Handle the case where some of the inputs are liquids, then recycling doesn't return them so you need more of them, but also they work with higher-quality recipes
 	- Investigate whether icon size can be reduced by removing some of them (since the files are hardcoding some icons)
 - Calculate machine speeds and speed modules
