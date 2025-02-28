@@ -10,7 +10,7 @@ object DataParser:
     private case class Module(consumption: Double = 0, speed: Double = 0, productivity: Double = 0, quality: Double = 0) derives ReadWriter
     private case class Item(id: String, name: String, isFluid: Boolean, machine: Option[Machine] = None,
                             beacon: Option[Beacon] = None, module: Option[Module] = None) derives ReadWriter
-    private case class Recipe(id: String, name: String, time: Double, producers: Array[String], in: Map[String, Int], out: Map[String, Int],
+    private case class Recipe(id: String, name: String, time: Double, producers: Array[String], in: Map[String, Int], out: Map[String, Double],
                               disallowedEffects: Array[String] = Array.empty, catalyst: Map[String, Int] = Map.empty) derives ReadWriter
     private case class FactorioData(items: Vector[Item], recipes: Vector[Recipe]) derives ReadWriter
     def parse(json: String): (Vector[FItem], Vector[FRecipe]) =
