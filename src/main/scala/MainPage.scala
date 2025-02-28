@@ -72,22 +72,27 @@ class MainPage(items: Vector[Item], recipes: Vector[Recipe]):
                 case Some((productivity, machineQuality, recyclerQuality, machineSpeed, recyclerSpeed)) =>
                     import Calculator._
                     val calc = Calculator(unlockedQuality)
-                    val inputCount = selectedRecipe.in.head._2   // TODO: handle multiple inputs
-                    val outputCount = selectedRecipe.out.head._2 // TODO: handle multiple inputs
                     val recipeCraftingTimeSec = selectedRecipe.time
                     val ProductionRes(results, prodMachines, recMachines) = calc.calcSpeeds(
-                        inputCount, outputCount, machineQuality, recyclerQuality, productivity,
+                        machineQuality, recyclerQuality, productivity,
                         ingredientQuality, targetQuality, recipeCraftingTimeSec, machineSpeed, recyclerSpeed)
-                    val requiredIngredients = 1 / results(targetQuality)
-                    val Seq(resStr, prodStr) = Seq(results, prodMachines).map(machines => {
-                        (1 to 5).toList.filter(qual => machines(qual) > 0.0).map(qual => {
-                            f"${formatNumber(machines(qual) * requiredIngredients)} ${qualityToStr(qual)}"
-                        }).mkString(" | ")
-                    })
-                    val costRes = s"${formatNumber(requiredIngredients)} ${qualityToStr(ingredientQuality)} inputs needed to make: " + resStr
-                    val recStr = formatNumber(recMachines.values.sum * requiredIngredients)
-                    (costRes, "Machines: " + prodStr, "Recyclers: " + recStr)
-                case None => ("Error parsing - productivity, quality, and machine speed must be decimal numbers.", "", "")
+                    val mainOutputCount = selectedRecipe.out.head._2
+                    val requiredIngredientsMult = 1 / results(targetQuality) / mainOutputCount
+                    val costStr = selectedRecipe.in.toList.map { (item, input) =>
+                        s"${formatNumber(requiredIngredientsMult * input)} ${qualityToStr(ingredientQuality)} ${item.name}"
+                    }.mkString(" | ")
+                    def displayQualMap(map: Map[Int, Double], name: String): String =
+                        name + ": " +
+                        (1 to 5).toList
+                            .filter(qual => map(qual) > 0.0)
+                            .map(qual => f"${formatNumber(map(qual) * requiredIngredientsMult)} ${qualityToStr(qual)}")
+                            .mkString(" | ")
+                    val outputsStrings = selectedRecipe.out.toList.map: (item, outputCount) =>
+                        displayQualMap(results.view.mapValues(_ * outputCount).toMap, item.name)
+                    val prodStr = displayQualMap(prodMachines, "Machines")
+                    val recStr = formatNumber(recMachines.values.sum * requiredIngredientsMult)
+                    (costStr, outputsStrings, prodStr, "Recyclers: " + recStr)
+                case None => ("Error parsing - productivity, quality, and machine speed must be decimal numbers.", List(), "", "")
 
     def render(): HtmlElement =
         div(
@@ -195,8 +200,11 @@ class MainPage(items: Vector[Item], recipes: Vector[Recipe]):
                     )
                 )
             ),
+            h4("Ingredients:"),
             p(text <-- outputStrSignal.map(_._1)),
+            h4("Outputs:"),
+            children <-- outputStrSignal.map(_._2.map(div(_))),
             h4("To produce 1 per minute"),
-            p(text <-- outputStrSignal.map(_._2)),
-            p(text <-- outputStrSignal.map(_._3))
+            p(text <-- outputStrSignal.map(_._3)),
+            p(text <-- outputStrSignal.map(_._4))
         )

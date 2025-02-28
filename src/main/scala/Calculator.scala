@@ -39,7 +39,8 @@ class Calculator(lastUnlockedQual: Int = 5):
     def doRecycle(inputCount: Double, inputQuality: Int, qualityInRecycler: Double): Map[Int, Double] =
         doRecipe(inputCount, inputQuality, qualityInRecycler, 0).view.mapValues(_ / 4).toMap
 
-    /**
+    /** Assumes that the following equal 1: recipe crafting time, machine speed, recycler speed, number of inputs, number of outputs.
+     * 
      * First calculate how many legendary products we are getting per epic ingredient
      *     It works as follows:
      *     1. Put 1.0 epic ingredients in the machine, to get epic + legendary products
@@ -87,9 +88,8 @@ class Calculator(lastUnlockedQual: Int = 5):
                     .reduce(_ + _).addRecUses(qual, 1)
         ingredientToProduct(ingredientQual)
 
-    def calcSpeeds(inputCount: Int,
-                   outputCount: Int,
-                   qualInMachine: Double,
+    // Assumes recipe is 1 input => 1 output (e.g. 1 Iron Plate => 1 Pipe)
+    def calcSpeeds(qualInMachine: Double,
                    qualInRec: Double,
                    prodInMachine: Double,
                    ingredientQual: Int,
@@ -100,7 +100,6 @@ class Calculator(lastUnlockedQual: Int = 5):
         val ProductionRes(resCount, prodMachines, recMachines) = calcSpeedsUnit(qualInMachine, qualInRec, prodInMachine, ingredientQual, targetQual)
         val craftingTimeSec = recipeCraftingTimeSec / machineSpeed
         val recyclingTimeSec = (recipeCraftingTimeSec / 16) / recyclerSpeed
-        ProductionRes(
-            resCount.view.mapValues(_ * outputCount / inputCount).toMap,
-            prodMachines.view.mapValues(_ * craftingTimeSec / inputCount / 60).toMap,
-            recMachines.view.mapValues(_ * recyclingTimeSec / inputCount / 60).toMap)
+        ProductionRes(resCount,
+            prodMachines.view.mapValues(_ * craftingTimeSec / 60).toMap,
+            recMachines.view.mapValues(_ * recyclingTimeSec / 60).toMap)

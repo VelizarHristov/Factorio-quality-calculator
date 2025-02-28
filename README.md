@@ -16,5 +16,12 @@ This is WIP with some features already working. This is my to-do list:
 - Make it look nicer with the SAP UI5 components e.g. the inputs
 - Move the version number to a footer, in the right corner
 - Replace pixels in CSS with something more universal
+- Add icons for:
+	- Recipe
+	- Ingredients
+	- Outputs
+	- Machines
+	- Recyclers
+	- (Anything else?)
 
 If there's a feature that you wish to see, please open it as an Issue and I will consider adding it if it's in scope. The scope is anything that helps the user build production of quality items, which isn't already well covered by YAFC.
