@@ -8,7 +8,8 @@ import concurrent.ExecutionContext
 @main
 def main(): Unit =
     given ExecutionContext = ExecutionContext.global
-    for response <- fetch("/data.json", new RequestInit { method = HttpMethod.GET }).toFuture
+    for
+        response <- fetch("/data.json", new RequestInit { method = HttpMethod.GET }).toFuture
         jsonStr <- response.text().toFuture
     do
         val (items, recipes) = DataParser.parse(jsonStr)
