@@ -27,6 +27,5 @@ object DataParser:
                 val newProducers = producers.map(machinesMap)
                 val newIn = in.map((k, v) => itemsMap(k) -> v)
                 val newOut = out.map((k, v) => itemsMap(k) -> v)
-                val newCatalysts = catalyst.map((k, v) => itemsMap(k) -> v)
-                FRecipe(id, name, time, newProducers, newIn, newOut, disallowedEffects, newCatalysts)
+                FRecipe(id, name, time, newProducers, newIn, newOut, disallowedEffects, catalyst)
         (items, recipes)

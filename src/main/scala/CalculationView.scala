@@ -32,22 +32,34 @@ object CalculationView:
         import CommonData.qualityToStr
         val calc = Calculator(unlockedQuality)
         val recipeCraftingTimeSec = recipe.time
-        val Calculator.ProductionRes(results, prodMachines, recMachines) = calc.calcSpeeds(
-            machineQuality, recyclerQuality, productivity,
+        // TODO: later on needs to choose based on:
+        //   1. should not be liquid
+        //   2. should recycle into the inputs
+        //   3. arbitrarily if multiple meet this criteria
+        val (mainOutput, mainOutputCount) = recipe.out.head
+        val prodMultiplier = 1.0 - recipe.getCatalystDegree(mainOutput.id)
+        val (results, prodMachines, recMachines, prodCount) = calc.calcSpeeds(
+            machineQuality, recyclerQuality, productivity * prodMultiplier,
             ingredientQuality, targetQuality, recipeCraftingTimeSec, machineSpeed, recyclerSpeed)
-        val mainOutputCount = recipe.out.head._2
         val requiredIngredientsMult = 1 / results(targetQuality) / mainOutputCount
         val costStr = recipe.in.toList.map { (item, input) =>
             s"${formatNumber(requiredIngredientsMult * input)} ${qualityToStr(ingredientQuality)} ${item.name}"
         }.mkString(" | ")
+
         def displayQualMap(map: Map[Int, Double], name: String): String =
             name + ": " +
             (1 to 5).toList
                 .filter(qual => map(qual) > 0.0)
                 .map(qual => f"${formatNumber(map(qual) * requiredIngredientsMult)} ${qualityToStr(qual)}")
                 .mkString(" | ")
-        val outputsStrings = recipe.out.toList.map: (item, outputCount) =>
-            displayQualMap(results.view.mapValues(_ * outputCount).toMap, item.name)
+
+        val mainOutputStr = displayQualMap(results.view.mapValues(_ * mainOutputCount).toMap, mainOutput.name)
+        val byproductOutputsStr = recipe.out.toList
+            .filter(_._1.id != mainOutput.id)
+            .map: (item, outputCount) =>
+                val recipeProd = 1 + productivity * (1.0 - recipe.getCatalystDegree(item.id))
+                displayQualMap(prodCount.view.mapValues(_ * outputCount * recipeProd).toMap, item.name)
+        val outputsStrings = mainOutputStr :: byproductOutputsStr
         val prodStr = displayQualMap(prodMachines, "Machines")
         val recStr = formatNumber(recMachines.values.sum * requiredIngredientsMult)
         (costStr, outputsStrings, prodStr, "Recyclers: " + recStr)

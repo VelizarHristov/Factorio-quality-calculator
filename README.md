@@ -13,9 +13,12 @@ To do - main use cases and major improvements:
 			- If a byproduct is a catalyst, but the main product isn't, then do A
 			- If both the main product and a byproduct are catalysts to a different extent, then do A
 			- A: First calculate the productivity on the main product - if it's partly or entirely a catalyst that decreases its productivity (see first point for the formula); then do the entire calculation with that number (including recycling, or skipping it); finally, count the number of machine uses, and multiply how much of each byproduct they would make, while also separately for each byproduct taking into account the catalyst degree and productivity.
+	- 
+	- ! Reconsider all solutions below, if they can be simpler after the solutions above !
+	- 
 	- There are multiple outputs, and they don't recycle into the inputs (maybe reuse the below, idk)
 	- The output recycles into something other than either itself or the inputs (solution: first set target quality = ingredient quality, then upscale until we get enough of the target quality, so we get a lot of byproducts of lower quality)
-	- Some output byproducts are liquids (error: then how can it possibly recycle into its ingredients?)
+	- Some output byproducts are liquids (easy solution: just add them as byproducts - make sure to handle recycling correctly)
 	- A recipe makes from A to B, then B recycles into itself (easy solution -  first set target quality = ingredient quality, then combine results with recycling the lower-than-target-quality products into themselves)
 	- All inputs are liquids (easy solution - prevent ingredient quality>1, then reuse solution which recycles into itself)
 	- All outputs are liquids (easy solution - target quality set to 1; treat all output qualities as 1)

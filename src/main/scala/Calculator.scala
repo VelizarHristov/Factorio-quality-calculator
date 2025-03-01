@@ -96,10 +96,13 @@ class Calculator(lastUnlockedQual: Int = 5):
                    targetQual: Int,
                    recipeCraftingTimeSec: Double,
                    machineSpeed: Double,
-                   recyclerSpeed: Double): ProductionRes =
+                   recyclerSpeed: Double): (Map[Int, Double], Map[Int, Double], Map[Int, Double], Map[Int, Double]) =
         val ProductionRes(resCount, prodMachines, recMachines) = calcSpeedsUnit(qualInMachine, qualInRec, prodInMachine, ingredientQual, targetQual)
         val craftingTimeSec = recipeCraftingTimeSec / machineSpeed
         val recyclingTimeSec = (recipeCraftingTimeSec / 16) / recyclerSpeed
-        ProductionRes(resCount,
+        (
+            resCount,
             prodMachines.view.mapValues(_ * craftingTimeSec / 60).toMap,
-            recMachines.view.mapValues(_ * recyclingTimeSec / 60).toMap)
+            recMachines.view.mapValues(_ * recyclingTimeSec / 60).toMap,
+            prodMachines
+        )
