@@ -30,7 +30,7 @@ class MainPage(items: Vector[Item], recipes: Vector[Recipe]):
                 num.reverse.dropWhile(_ == '0').dropWhile(_ == '.').reverse
             else
                 num
-    def recipeComboItems(cb: ComboBox.type) = recipes.map(r =>
+    def recipeComboItems(cb: ComboBox.type) = recipes.filter(!_.disallowedEffects.contains("quality")).map(r =>
         cb.item(_.text := r.name)
     )
 

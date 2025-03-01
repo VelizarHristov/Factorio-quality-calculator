@@ -6,5 +6,5 @@ class Recipe(val id: String,
              val producers: Array[Machine],
              val in: Map[Item, Int],
              val out: Map[Item, Double],
-             disallowedEffects: Array[String],
+             val disallowedEffects: Array[String],
              catalyst: Map[Item, Int])
