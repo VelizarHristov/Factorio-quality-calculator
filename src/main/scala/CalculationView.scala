@@ -3,9 +3,9 @@ package calculator
 import calculator.factorio_data.Recipe
 
 object CalculationView:
-    private def formatNumber(n: Double) =
+    def formatNumber(n: Double): String =
         if n == 0 then
-            0
+            "0"
         else
             val num = 
                 if n >= 1 then
@@ -20,6 +20,68 @@ object CalculationView:
             else
                 num
 
+    type CalcRes = (List[(String, Int, Double)], List[(String, List[(Int, Double)])], (String, List[(Int, Double)]), Double)
+    def calcForDisplay(unlockedQuality: Int,
+                       ingredientQuality: Int,
+                       targetQuality: Int,
+                       recipe: Recipe,
+                       machineQuality: Double,
+                       recyclerQuality: Double,
+                       productivity: Double,
+                       machineSpeed: Double,
+                       recyclerSpeed: Double): CalcRes =
+        import Calculator.ProductionRes
+        val calc = Calculator(unlockedQuality)
+        val recipeCraftingTimeSec = recipe.time
+        // TODO: later on needs to choose based on:
+        //   1. should not be liquid
+        //   2. should recycle into the inputs
+        //   3. arbitrarily if multiple meet this criteria
+        val (mainOutput, mainOutputCount) = recipe.out.head
+        val prodMultiplier = 1.0 - recipe.getCatalystDegree(mainOutput.id)
+        val ProductionRes(results, prodCount, recCount) = calc.calcSpeedsUnit(
+            machineQuality, recyclerQuality, productivity * prodMultiplier, ingredientQuality, targetQuality)
+        val craftingTimeSec = recipeCraftingTimeSec / machineSpeed
+        val recyclingTimeSec = (recipeCraftingTimeSec / 16) / recyclerSpeed
+        val prodMachines = prodCount.view.mapValues(_ * craftingTimeSec / 60).toMap
+        val recMachines = recCount.view.mapValues(_ * recyclingTimeSec / 60).toMap
+        val requiredIngredientsMult = 1 / results(targetQuality) / mainOutputCount
+
+        val inputs = recipe.in.toList.map: (item, input) =>
+            (item.name, ingredientQuality, requiredIngredientsMult * input)
+        def makeQualMap(map: Map[Int, Double], name: String): (String, List[(Int, Double)]) =
+            name -> (1 to 5).toList
+                .filter(qual => map(qual) > 0.0)
+                .map(qual => qual -> map(qual) * requiredIngredientsMult)
+        val mainOutputThing = makeQualMap(results.view.mapValues(_ * mainOutputCount).toMap, mainOutput.name)
+        val byproductOutputsThing = recipe.out.toList
+            .filter(_._1.id != mainOutput.id)
+            .map: (item, outputCount) =>
+                val recipeProd = 1 + productivity * (1.0 - recipe.getCatalystDegree(item.id))
+                makeQualMap(prodCount.view.mapValues(_ * outputCount * recipeProd).toMap, item.name)
+        val outputs = mainOutputThing :: byproductOutputsThing
+        val machineUsage = makeQualMap(prodMachines, "Machines")
+        val recyclerTotalUses = recMachines.values.sum * requiredIngredientsMult
+
+        (inputs, outputs, machineUsage, recyclerTotalUses)
+
+    def displayCalc(res: CalcRes): (String, List[String], String, String) =
+        import CommonData.qualityToStr
+        val (inputs, outputs, (machineName, machineUsage), recyclerUses) = res
+        val inputsStr = inputs.map { (name, quality, count) =>
+            s"${formatNumber(count)} ${qualityToStr(quality)} $name"
+        }.mkString(" | ")
+        val outputsStr = outputs.map: (name, amounts) =>
+            name + ": " + amounts.map { (quality, amount) =>
+                f"${formatNumber(amount)} ${qualityToStr(quality)}"
+            }.mkString(" | ")
+        val machineUsageStr = machineName + ": " + machineUsage.map { (quality, amount) =>
+            f"${formatNumber(amount)} ${qualityToStr(quality)}"
+        }.mkString(" | ")
+        val recyclerUsageStr = "Recyclers: " + formatNumber(recyclerUses)
+
+        (inputsStr, outputsStr, machineUsageStr, recyclerUsageStr)        
+
     def calcAndDisplay(unlockedQuality: Int,
                        ingredientQuality: Int,
                        targetQuality: Int,
@@ -29,37 +91,6 @@ object CalculationView:
                        productivity: Double,
                        machineSpeed: Double,
                        recyclerSpeed: Double): (String, List[String], String, String) =
-        import CommonData.qualityToStr
-        val calc = Calculator(unlockedQuality)
-        val recipeCraftingTimeSec = recipe.time
-        // TODO: later on needs to choose based on:
-        //   1. should not be liquid
-        //   2. should recycle into the inputs
-        //   3. arbitrarily if multiple meet this criteria
-        val (mainOutput, mainOutputCount) = recipe.out.head
-        val prodMultiplier = 1.0 - recipe.getCatalystDegree(mainOutput.id)
-        val (results, prodMachines, recMachines, prodCount) = calc.calcSpeeds(
-            machineQuality, recyclerQuality, productivity * prodMultiplier,
-            ingredientQuality, targetQuality, recipeCraftingTimeSec, machineSpeed, recyclerSpeed)
-        val requiredIngredientsMult = 1 / results(targetQuality) / mainOutputCount
-        val costStr = recipe.in.toList.map { (item, input) =>
-            s"${formatNumber(requiredIngredientsMult * input)} ${qualityToStr(ingredientQuality)} ${item.name}"
-        }.mkString(" | ")
-
-        def displayQualMap(map: Map[Int, Double], name: String): String =
-            name + ": " +
-            (1 to 5).toList
-                .filter(qual => map(qual) > 0.0)
-                .map(qual => f"${formatNumber(map(qual) * requiredIngredientsMult)} ${qualityToStr(qual)}")
-                .mkString(" | ")
-
-        val mainOutputStr = displayQualMap(results.view.mapValues(_ * mainOutputCount).toMap, mainOutput.name)
-        val byproductOutputsStr = recipe.out.toList
-            .filter(_._1.id != mainOutput.id)
-            .map: (item, outputCount) =>
-                val recipeProd = 1 + productivity * (1.0 - recipe.getCatalystDegree(item.id))
-                displayQualMap(prodCount.view.mapValues(_ * outputCount * recipeProd).toMap, item.name)
-        val outputsStrings = mainOutputStr :: byproductOutputsStr
-        val prodStr = displayQualMap(prodMachines, "Machines")
-        val recStr = formatNumber(recMachines.values.sum * requiredIngredientsMult)
-        (costStr, outputsStrings, prodStr, "Recyclers: " + recStr)
+        val res = calcForDisplay(unlockedQuality, ingredientQuality, targetQuality, recipe,
+            machineQuality, recyclerQuality, productivity, machineSpeed, recyclerSpeed)
+        displayCalc(res)

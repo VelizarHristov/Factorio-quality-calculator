@@ -87,22 +87,3 @@ class Calculator(lastUnlockedQual: Int = 5):
                     .map((q, c) => ingredientToProduct(q) * c)
                     .reduce(_ + _).addRecUses(qual, 1)
         ingredientToProduct(ingredientQual)
-
-    // Assumes recipe is 1 input => 1 output (e.g. 1 Iron Plate => 1 Pipe)
-    def calcSpeeds(qualInMachine: Double,
-                   qualInRec: Double,
-                   prodInMachine: Double,
-                   ingredientQual: Int,
-                   targetQual: Int,
-                   recipeCraftingTimeSec: Double,
-                   machineSpeed: Double,
-                   recyclerSpeed: Double): (Map[Int, Double], Map[Int, Double], Map[Int, Double], Map[Int, Double]) =
-        val ProductionRes(resCount, prodMachines, recMachines) = calcSpeedsUnit(qualInMachine, qualInRec, prodInMachine, ingredientQual, targetQual)
-        val craftingTimeSec = recipeCraftingTimeSec / machineSpeed
-        val recyclingTimeSec = (recipeCraftingTimeSec / 16) / recyclerSpeed
-        (
-            resCount,
-            prodMachines.view.mapValues(_ * craftingTimeSec / 60).toMap,
-            recMachines.view.mapValues(_ * recyclingTimeSec / 60).toMap,
-            prodMachines
-        )
