@@ -16,9 +16,9 @@ object DataParser:
     def parse(json: String): (Vector[FItem], Vector[FRecipe]) =
         val parsed = read[FactorioData](json)
         val items = parsed.items.map:
-            case Item(id, name, isFluid, Some(Machine(speed, modules)), _, _) => FMachine(id, name, isFluid, speed, modules)
-            case Item(id, name, isFluid, _, Some(Beacon(effectivity, modules, profile)), _) => FBeacon(id, name, isFluid, effectivity, modules, profile)
-            case Item(id, name, isFluid, _, _, Some(Module(consumption, speed, productivity, quality))) => FModule(id, name, isFluid, consumption, speed, productivity, quality)
+            case Item(id, name, _, Some(Machine(speed, modules)), _, _) => FMachine(id, name, speed, modules)
+            case Item(id, name, _, _, Some(Beacon(effectivity, modules, profile)), _) => FBeacon(id, name, effectivity, modules, profile)
+            case Item(id, name, _, _, _, Some(Module(consumption, speed, productivity, quality))) => FModule(id, name, consumption, speed, productivity, quality)
             case Item(id, name, isFluid, _, _, _) => FItem(id, name, isFluid)
         val itemsMap = items.map(i => i.id -> i).toMap
         val machinesMap = itemsMap.collect { case (k, v: FMachine) => (k, v) }

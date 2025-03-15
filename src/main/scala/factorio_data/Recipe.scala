@@ -12,3 +12,5 @@ case class Recipe(val id: String,
     def getCatalystDegree(item: String): Double =
         val totalOutput = out.find(_._1.id == item).get._2
         catalyst.getOrElse(item, 0) / totalOutput
+    lazy val isRecycler = producers.head.id == "recycler"
+    lazy val recyclesIntoItself = isRecycler && in.map((k, v) => (k, v * 0.25)) == out

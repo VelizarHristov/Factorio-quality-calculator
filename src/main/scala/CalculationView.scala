@@ -36,15 +36,17 @@ object CalculationView:
         // TODO: later on needs to choose based on:
         //   1. should not be liquid
         //   2. should recycle into the inputs
-        //   3. arbitrarily if multiple meet this criteria
+        //   3. arbitrarily if multiple meet 1 and none meets 2
         val (mainOutput, mainOutputCount) = recipe.out.head
-        val prodMultiplier = 1.0 - recipe.getCatalystDegree(mainOutput.id)
-        val ProductionRes(results, prodCount, recCount) = calc.calcSpeedsUnit(
-            machineQuality, recyclerQuality, productivity * prodMultiplier, ingredientQuality, targetQuality)
+         // TODO: should show no machines, only recyclers
+        val ProductionRes(results, prodCount, recCount) = if recipe.recyclesIntoItself then
+            calc.calcSpeedsUnit(recyclerQuality, 0, 0, ingredientQuality, targetQuality)
+        else
+            val prodMultiplier = 1.0 - recipe.getCatalystDegree(mainOutput.id)
+            calc.calcSpeedsUnit(machineQuality, recyclerQuality, productivity * prodMultiplier, ingredientQuality, targetQuality)
         val craftingTimeSec = recipeCraftingTimeSec / machineSpeed
-        val recyclingTimeSec = (recipeCraftingTimeSec / 16) / recyclerSpeed
-        val prodMachines = prodCount.view.mapValues(_ * craftingTimeSec / 60).toMap
-        val recMachines = recCount.view.mapValues(_ * recyclingTimeSec / 60).toMap
+        val recyclingRecipeSpeed = if (recipe.isRecycler) recipeCraftingTimeSec else recipeCraftingTimeSec / 16
+        val recyclingTimeSec = recyclingRecipeSpeed / recyclerSpeed
         val requiredIngredientsMult = 1 / results(targetQuality) / mainOutputCount
 
         val inputs = recipe.in.toList.map: (item, input) =>
@@ -60,7 +62,9 @@ object CalculationView:
                 val recipeProd = 1 + productivity * (1.0 - recipe.getCatalystDegree(item.id))
                 makeQualMap(prodCount.view.mapValues(_ * outputCount * recipeProd).toMap, item.name)
         val outputs = mainOutputThing :: byproductOutputsThing
-        val machineUsage = makeQualMap(prodMachines, "Machines")
+        val prodMachines = prodCount.view.mapValues(_ * craftingTimeSec / 60).toMap
+        val recMachines = recCount.view.mapValues(_ * recyclingTimeSec / 60).toMap
+        val machineUsage = makeQualMap(prodMachines, if recipe.isRecycler then "" else "Machines")
         val recyclerTotalUses = recMachines.values.sum * requiredIngredientsMult
 
         (inputs, outputs, machineUsage, recyclerTotalUses)
@@ -75,10 +79,14 @@ object CalculationView:
             name + ": " + amounts.map { (quality, amount) =>
                 f"${formatNumber(amount)} ${qualityToStr(quality)}"
             }.mkString(" | ")
-        val machineUsageStr = machineName + ": " + machineUsage.map { (quality, amount) =>
-            f"${formatNumber(amount)} ${qualityToStr(quality)}"
-        }.mkString(" | ")
-        val recyclerUsageStr = "Recyclers: " + formatNumber(recyclerUses)
+        val machineUsageStr =
+            if machineName.nonEmpty then
+                machineName + ": " + machineUsage.map { (quality, amount) =>
+                    f"${formatNumber(amount)} ${qualityToStr(quality)}"
+                }.mkString(" | ")
+            else
+                ""
+        val recyclerUsageStr = if (recyclerUses == 0) "" else "Recyclers: " + formatNumber(recyclerUses)
 
         (inputsStr, outputsStr, machineUsageStr, recyclerUsageStr)        
 

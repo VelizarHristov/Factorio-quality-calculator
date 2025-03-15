@@ -5,25 +5,20 @@ This is WIP with some features already working.
 To do - main use cases and major improvements:
 - Improve handling of recipes, handle cases where:
 	!! Idea: make use of the number of times that each machine was used (including recycling) !!
-	- Some of the inputs are fluids (IDEA: keep track of how many inputs come from recycling; then compensate for the fluids by demanding them from the inputs)
-	- There are catalysts
-		* Brainstorming in text:
-			- If there is only one output, then we can just use the regular function, but multiplying the productivity by a lower number (if 2/3 of the outputs are catalysts then 1/3 aren't; applying the entire productivity bonus to those is the same as applying 1/3 of the productivity bonus to the entire output)
-			- If the main product is not a catalyst, but a byproduct is, then do A
-			- If a byproduct is a catalyst, but the main product isn't, then do A
-			- If both the main product and a byproduct are catalysts to a different extent, then do A
-			- A: First calculate the productivity on the main product - if it's partly or entirely a catalyst that decreases its productivity (see first point for the formula); then do the entire calculation with that number (including recycling, or skipping it); finally, count the number of machine uses, and multiply how much of each byproduct they would make, while also separately for each byproduct taking into account the catalyst degree and productivity.
+	! There are catalysts
+	! The user has selected a recycling recipe (easy solution - fix 0% productivity and 0% quality for the fake "machine", with a recipe that is 1->1)
+	- Recipe makes from A to B, then B recycles into itself (easy solution -  first set target quality = ingredient quality, then combine results with recycling the lower-than-target-quality products into themselves)
+	- Some of the inputs are fluids (plan: keep track of how many inputs come from recycling, then compensate for the fluids by demanding them from the inputs; also, downgrade all fluids to normal quality)
 	- 
 	- ! Reconsider all solutions below, if they can be simpler after the solutions above !
 	- 
 	- There are multiple outputs, and they don't recycle into the inputs (maybe reuse the below, idk)
 	- The output recycles into something other than either itself or the inputs (solution: first set target quality = ingredient quality, then upscale until we get enough of the target quality, so we get a lot of byproducts of lower quality)
 	- Some output byproducts are liquids (easy solution: just add them as byproducts - make sure to handle recycling correctly)
-	- A recipe makes from A to B, then B recycles into itself (easy solution -  first set target quality = ingredient quality, then combine results with recycling the lower-than-target-quality products into themselves)
+	- Recipe recycles from A to B, then optionally recycles from B to B (easy solution - do nothing - treat recyclers from A to B as any other machine, since it will not allow prod modules in them by default)
 	- All inputs are liquids (easy solution - prevent ingredient quality>1, then reuse solution which recycles into itself)
 	- All outputs are liquids (easy solution - target quality set to 1; treat all output qualities as 1)
-	- The user has selected a recycling recipe (easy solution - fix 0% productivity and 0% quality for the fake "machine", with a recipe that is 1->1)
-	- After the above are implemented, add a radio button for the recycling mode - no recycling or recycling. Is there a third option? If no then make it a checkbox instead.
+	- After the above are implemented, add a checkbox for whether to recycle the products. Only present if it can recycle into itself or into the ingredients, and if the recipe isn't a recycler one.
 - Easier input for machine & module setup
 	- Allow specifying the quality of crafting & recycling machines
 	- Allow adding modules and calculate their effects
